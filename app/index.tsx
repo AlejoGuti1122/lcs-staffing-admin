@@ -1,10 +1,11 @@
 import { MaterialIcons } from "@expo/vector-icons"
-import { router } from "expo-router" // Para Expo Router
+import { router } from "expo-router"
 import { StatusBar } from "expo-status-bar"
 import { signInWithEmailAndPassword } from "firebase/auth"
 import { doc, setDoc } from "firebase/firestore"
-import { Box, Button, HStack, Icon, Input, Text, VStack } from "native-base"
+import { Box, Button, HStack, Text, VStack } from "native-base"
 import React, { useState } from "react"
+import { StyleSheet, TextInput, View } from "react-native"
 import { auth, db } from "../config/firebase"
 import { useElegantToast } from "./hooks/useElegantToast"
 
@@ -39,23 +40,32 @@ export default function LoginScreen() {
     return ""
   }
 
-  // Manejar cambio de email
+  // Manejar cambio de email - SOLO limpiar errores
   const handleEmailChange = (value: string): void => {
     setEmail(value)
     if (emailError) {
-      setEmailError(validateEmail(value))
+      setEmailError("")
     }
   }
 
-  // Manejar cambio de contraseña
+  // Manejar cambio de contraseña - SOLO limpiar errores
   const handlePasswordChange = (value: string): void => {
     setPassword(value)
     if (passwordError) {
-      setPasswordError(validatePassword(value))
+      setPasswordError("")
     }
   }
 
-  // Manejar envío del formulario con Firebase y Firestore
+  // Validar solo en onBlur
+  const handleEmailBlur = (): void => {
+    setEmailError(validateEmail(email))
+  }
+
+  const handlePasswordBlur = (): void => {
+    setPasswordError(validatePassword(password))
+  }
+
+  // Función de login original
   const handleLogin = async (): Promise<void> => {
     // Validar campos
     const emailErr = validateEmail(email)
@@ -86,7 +96,6 @@ export default function LoginScreen() {
       try {
         console.log("Guardando datos de login en Firestore...")
 
-        // Guardar registro de login en colección user_logins
         await setDoc(
           doc(db, "user_logins", user.uid),
           {
@@ -103,7 +112,6 @@ export default function LoginScreen() {
           { merge: true }
         )
 
-        // Crear/actualizar perfil de usuario en colección users
         await setDoc(
           doc(db, "users", user.uid),
           {
@@ -131,11 +139,7 @@ export default function LoginScreen() {
       router.push("/jobList")
     } catch (error: any) {
       console.error("Error completo en login:", error)
-      console.error("Tipo de error:", typeof error)
-      console.error("Error.code:", error.code)
-      console.error("Error.message:", error.message)
 
-      // Manejar diferentes tipos de errores de Firebase
       let errorMessage = "Error al iniciar sesión"
 
       switch (error.code) {
@@ -179,7 +183,6 @@ export default function LoginScreen() {
     }
   }
 
-  // Verificar si el formulario es válido
   const isFormValid: boolean = !!(
     email &&
     password &&
@@ -197,7 +200,6 @@ export default function LoginScreen() {
     >
       <StatusBar style="light" />
 
-      {/* Header */}
       <VStack
         alignItems="center"
         mb={10}
@@ -232,7 +234,7 @@ export default function LoginScreen() {
       </VStack>
 
       <VStack space={6}>
-        {/* Correo */}
+        {/* Correo con TextInput nativo */}
         <Box>
           <Text
             color="white"
@@ -241,44 +243,31 @@ export default function LoginScreen() {
           >
             Correo
           </Text>
-          <Input
-            placeholder="tu@correo.com"
-            placeholderTextColor="gray.400"
-            bg="gray.800"
-            borderColor={emailError ? "red.500" : "gray.700"}
-            borderWidth={1}
-            borderRadius="lg"
-            color="white"
-            fontSize="md"
-            py={4}
-            _focus={{
-              borderColor: emailError ? "red.500" : "primary.500",
-              bg: "gray.800",
-            }}
-            _invalid={{
-              bg: "gray.800",
-            }}
-            style={{
-              backgroundColor: "#262626",
-            }}
-            InputLeftElement={
-              <Icon
-                as={MaterialIcons}
-                name="email"
-                ml={4}
-                mr={4}
-                color={emailError ? "red.500" : "gray.400"}
-                size="md"
-                my="auto"
-              />
-            }
-            value={email}
-            onChangeText={handleEmailChange}
-            onBlur={() => setEmailError(validateEmail(email))}
-            keyboardType="email-address"
-            autoCapitalize="none"
-            isInvalid={!!emailError}
-          />
+          <View
+            style={[
+              styles.inputContainer,
+              { borderColor: emailError ? "#ef4444" : "#404040" },
+            ]}
+          >
+            <MaterialIcons
+              name="email"
+              size={20}
+              color={emailError ? "#ef4444" : "#9ca3af"}
+              style={styles.icon}
+            />
+            <TextInput
+              style={styles.textInput}
+              placeholder="tu@correo.com"
+              placeholderTextColor="#9ca3af"
+              value={email}
+              onChangeText={handleEmailChange}
+              onBlur={handleEmailBlur}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoComplete="email"
+              textContentType="emailAddress"
+            />
+          </View>
           {emailError ? (
             <Text
               color="red.500"
@@ -290,7 +279,7 @@ export default function LoginScreen() {
           ) : null}
         </Box>
 
-        {/* Contraseña */}
+        {/* Contraseña con TextInput nativo */}
         <Box>
           <Text
             color="white"
@@ -299,43 +288,30 @@ export default function LoginScreen() {
           >
             Contraseña
           </Text>
-          <Input
-            placeholder="••••••••"
-            placeholderTextColor="gray.400"
-            bg="gray.800"
-            borderColor={passwordError ? "red.500" : "gray.700"}
-            borderWidth={1}
-            borderRadius="lg"
-            color="white"
-            fontSize="md"
-            py={4}
-            _focus={{
-              borderColor: passwordError ? "red.500" : "primary.500",
-              bg: "gray.800",
-            }}
-            _invalid={{
-              bg: "gray.800",
-            }}
-            style={{
-              backgroundColor: "#262626",
-            }}
-            InputLeftElement={
-              <Icon
-                as={MaterialIcons}
-                name="lock"
-                ml={4}
-                color={passwordError ? "red.500" : "gray.400"}
-                size="md"
-                my="auto"
-                mr={4}
-              />
-            }
-            value={password}
-            onChangeText={handlePasswordChange}
-            onBlur={() => setPasswordError(validatePassword(password))}
-            secureTextEntry
-            isInvalid={!!passwordError}
-          />
+          <View
+            style={[
+              styles.inputContainer,
+              { borderColor: passwordError ? "#ef4444" : "#404040" },
+            ]}
+          >
+            <MaterialIcons
+              name="lock"
+              size={20}
+              color={passwordError ? "#ef4444" : "#9ca3af"}
+              style={styles.icon}
+            />
+            <TextInput
+              style={styles.textInput}
+              placeholder="••••••••"
+              placeholderTextColor="#9ca3af"
+              value={password}
+              onChangeText={handlePasswordChange}
+              onBlur={handlePasswordBlur}
+              secureTextEntry
+              autoComplete="current-password"
+              textContentType="password"
+            />
+          </View>
           {passwordError ? (
             <Text
               color="red.500"
@@ -373,3 +349,24 @@ export default function LoginScreen() {
     </Box>
   )
 }
+
+const styles = StyleSheet.create({
+  inputContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#262626",
+    borderRadius: 12,
+    borderWidth: 1,
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+  },
+  icon: {
+    marginRight: 12,
+  },
+  textInput: {
+    flex: 1,
+    color: "white",
+    fontSize: 16,
+    padding: 0, // Importante para evitar padding extra
+  },
+})

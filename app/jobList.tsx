@@ -1,5 +1,5 @@
 import { MaterialIcons } from "@expo/vector-icons"
-import { router } from "expo-router" // Cambiar a Expo Router
+import { router } from "expo-router"
 import { StatusBar } from "expo-status-bar"
 import {
   collection,
@@ -34,20 +34,21 @@ interface Job {
   location?: string
   salary?: string
   requirements?: string[]
-  createdAt: any // Firebase Timestamp
+  createdAt: any
   createdBy: string
   status: string
 }
 
 export default function JobsListScreen() {
-  // Remover props navigation
   const [jobs, setJobs] = useState<Job[]>([])
   const [loading, setLoading] = useState<boolean>(true)
   const [selectedJob, setSelectedJob] = useState<Job | null>(null)
+  const [isDeleting, setIsDeleting] = useState<boolean>(false)
   const { isOpen, onOpen, onClose } = useDisclose()
   const cancelRef = useRef<any>(null)
   const elegantToast = useElegantToast()
 
+  // ✅ FIX: Remover elegantToast de las dependencias para evitar loop infinito
   useEffect(() => {
     const q = query(collection(db, "jobs"), orderBy("createdAt", "desc"))
 
@@ -63,6 +64,7 @@ export default function JobsListScreen() {
       },
       (error) => {
         console.error("Error obteniendo empleos:", error)
+        // El toast sigue funcionando, solo no está en las dependencias
         elegantToast.error({
           title: "Error",
           description: "No se pudieron cargar los empleos",
@@ -73,32 +75,43 @@ export default function JobsListScreen() {
     )
 
     return () => unsubscribe()
-  }, [elegantToast])
+  }, []) // ✅ Array vacío - esto evita el loop infinito
 
+  // ✅ Función de eliminación con toast
   const handleDeleteJob = async (): Promise<void> => {
-    if (!selectedJob) return
+    if (!selectedJob || isDeleting) return
+
+    setIsDeleting(true)
 
     try {
       await deleteDoc(doc(db, "jobs", selectedJob.id))
+
+      // ✅ Toast de éxito
       elegantToast.success({
-        title: "Éxito",
+        title: "¡Éxito!",
         description: "Empleo eliminado correctamente",
         duration: 3000,
       })
+
+      onClose()
+      setSelectedJob(null)
     } catch (error) {
       console.error("Error eliminando empleo:", error)
+
+      // ✅ Toast de error
       elegantToast.error({
         title: "Error",
         description: "No se pudo eliminar el empleo",
         duration: 3000,
       })
     } finally {
-      onClose()
-      setSelectedJob(null)
+      setIsDeleting(false)
     }
   }
 
+  // ✅ Función para abrir modal
   const openDeleteDialog = (job: Job): void => {
+    if (isDeleting) return
     setSelectedJob(job)
     onOpen()
   }
@@ -107,11 +120,9 @@ export default function JobsListScreen() {
     if (!timestamp) return "Fecha no disponible"
 
     try {
-      // Si es un timestamp de Firebase
       if (timestamp.toDate) {
         return timestamp.toDate().toLocaleDateString("es-CO")
       }
-      // Si es un string ISO
       if (typeof timestamp === "string") {
         return new Date(timestamp).toLocaleDateString("es-CO")
       }
@@ -279,6 +290,7 @@ export default function JobsListScreen() {
         alignItems="center"
       >
         <HStack space={2}>
+          {/* ✅ Botón que abre el modal */}
           <Button
             variant="outline"
             colorScheme="red"
@@ -292,6 +304,8 @@ export default function JobsListScreen() {
             }
             onPress={() => openDeleteDialog(item)}
             _text={{ fontSize: "xs" }}
+            _pressed={{ opacity: 0.7 }}
+            isDisabled={isDeleting}
           >
             Eliminar
           </Button>
@@ -362,7 +376,7 @@ export default function JobsListScreen() {
               color="white"
             />
           }
-          onPress={() => router.push("/createJob")} // Cambiar a Expo Router
+          onPress={() => router.push("/createJob")}
           _text={{ fontWeight: "medium", fontSize: "sm" }}
         >
           Crear
@@ -436,7 +450,7 @@ export default function JobsListScreen() {
                   color="white"
                 />
               }
-              onPress={() => router.push("/createJob")} // Cambiar a Expo Router
+              onPress={() => router.push("/createJob")}
               mt={2}
             >
               Crear Primer Empleo
@@ -453,7 +467,7 @@ export default function JobsListScreen() {
         />
       )}
 
-      {/* Dialog de confirmación para eliminar */}
+      {/* ✅ Modal hermoso con toast funcionando */}
       <AlertDialog
         leastDestructiveRef={cancelRef}
         isOpen={isOpen}
@@ -496,12 +510,19 @@ export default function JobsListScreen() {
               >
                 Cancelar
               </Button>
+              {/* ✅ Botón que ejecuta eliminación con toast */}
               <Button
                 bg="red.600"
                 _pressed={{ bg: "red.700" }}
                 onPress={handleDeleteJob}
+                isLoading={isDeleting}
+                isDisabled={isDeleting}
+                _loading={{
+                  bg: "red.600",
+                  _text: { color: "white" },
+                }}
               >
-                Eliminar
+                {isDeleting ? "Eliminando..." : "Eliminar"}
               </Button>
             </Button.Group>
           </AlertDialog.Footer>
