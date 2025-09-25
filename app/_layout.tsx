@@ -2,6 +2,21 @@ import { Stack } from "expo-router"
 import { NativeBaseProvider, extendTheme } from "native-base"
 import { BackHandler } from "react-native"
 
+if (typeof document !== "undefined") {
+  const style = document.createElement("style")
+  style.textContent = `
+    * {
+      outline: none !important;
+      -webkit-tap-highlight-color: transparent;
+    }
+    input:focus, textarea:focus {
+      outline: none !important;
+      box-shadow: none !important;
+    }
+  `
+  document.head.appendChild(style)
+}
+
 // PATCH MÍNIMO - Solo silenciar el warning
 const originalConsoleWarn = console.warn
 console.warn = (...args: any[]) => {
