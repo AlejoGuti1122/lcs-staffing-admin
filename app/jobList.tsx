@@ -3,11 +3,11 @@ import { router } from "expo-router"
 import { StatusBar } from "expo-status-bar"
 import {
   collection,
-  deleteDoc,
   doc,
   onSnapshot,
   orderBy,
   query,
+  updateDoc, // ✅ Cambié deleteDoc por updateDoc
 } from "firebase/firestore"
 import {
   AlertDialog,
@@ -64,7 +64,6 @@ export default function JobsListScreen() {
       },
       (error) => {
         console.error("Error obteniendo empleos:", error)
-        // El toast sigue funcionando, solo no está en las dependencias
         elegantToast.error({
           title: "Error",
           description: "No se pudieron cargar los empleos",
@@ -75,33 +74,37 @@ export default function JobsListScreen() {
     )
 
     return () => unsubscribe()
-  }, []) // ✅ Array vacío - esto evita el loop infinito
+  }, [])
 
-  // ✅ Función de eliminación con toast
-  const handleDeleteJob = async (): Promise<void> => {
+  // ✅ Función de desactivación actualizada
+  const handleDeactivateJob = async (): Promise<void> => {
     if (!selectedJob || isDeleting) return
 
     setIsDeleting(true)
 
     try {
-      await deleteDoc(doc(db, "jobs", selectedJob.id))
+      // ✅ Cambiar status a 'inactive' en lugar de eliminar
+      await updateDoc(doc(db, "jobs", selectedJob.id), {
+        status: "inactive",
+        deactivatedAt: new Date(),
+      })
 
-      // ✅ Toast de éxito
+      // ✅ Toast de éxito actualizado
       elegantToast.success({
         title: "¡Éxito!",
-        description: "Empleo eliminado correctamente",
+        description: "Empleo desactivado correctamente",
         duration: 3000,
       })
 
       onClose()
       setSelectedJob(null)
     } catch (error) {
-      console.error("Error eliminando empleo:", error)
+      console.error("Error desactivando empleo:", error)
 
-      // ✅ Toast de error
+      // ✅ Toast de error actualizado
       elegantToast.error({
         title: "Error",
-        description: "No se pudo eliminar el empleo",
+        description: "No se pudo desactivar el empleo",
         duration: 3000,
       })
     } finally {
@@ -109,8 +112,34 @@ export default function JobsListScreen() {
     }
   }
 
-  // ✅ Función para abrir modal
-  const openDeleteDialog = (job: Job): void => {
+  // ✅ Función para reactivar empleo (funcionalidad extra)
+  const handleReactivateJob = async (job: Job): Promise<void> => {
+    try {
+      setIsDeleting(true)
+      await updateDoc(doc(db, "jobs", job.id), {
+        status: "active",
+        reactivatedAt: new Date(),
+      })
+
+      elegantToast.success({
+        title: "¡Éxito!",
+        description: "Empleo reactivado correctamente",
+        duration: 3000,
+      })
+    } catch (error) {
+      console.error("Error reactivando empleo:", error)
+      elegantToast.error({
+        title: "Error",
+        description: "No se pudo reactivar el empleo",
+        duration: 3000,
+      })
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
+  // ✅ Función para abrir modal actualizada
+  const openDeactivateDialog = (job: Job): void => {
     if (isDeleting) return
     setSelectedJob(job)
     onOpen()
@@ -139,7 +168,7 @@ export default function JobsListScreen() {
       mb={3}
       borderRadius="lg"
       borderLeftWidth={4}
-      borderLeftColor="primary.500"
+      borderLeftColor={item.status === "active" ? "primary.500" : "orange.500"}
     >
       {/* Header del empleo */}
       <HStack
@@ -195,11 +224,12 @@ export default function JobsListScreen() {
             </HStack>
           )}
         </VStack>
+        {/* ✅ Badge actualizado con colores apropiados */}
         <Badge
-          colorScheme="green"
+          colorScheme={item.status === "active" ? "green" : "red"}
           variant="subtle"
         >
-          {item.status === "active" ? "Activo" : "Inactivo"}
+          {item.status === "active" ? "Activo" : "Desactivado"}
         </Badge>
       </HStack>
 
@@ -262,6 +292,8 @@ export default function JobsListScreen() {
               <Badge
                 colorScheme="gray"
                 variant="outline"
+                mr={1}
+                mb={1}
               >
                 <Text fontSize="xs">+{item.requirements.length - 3} más</Text>
               </Badge>
@@ -284,31 +316,52 @@ export default function JobsListScreen() {
         mb={3}
       />
 
-      {/* Botones de acción */}
+      {/* ✅ Botones de acción actualizados */}
       <HStack
         justifyContent="space-between"
         alignItems="center"
       >
         <HStack space={2}>
-          {/* ✅ Botón que abre el modal */}
-          <Button
-            variant="outline"
-            colorScheme="red"
-            size="sm"
-            leftIcon={
-              <Icon
-                as={MaterialIcons}
-                name="delete"
-                size="xs"
-              />
-            }
-            onPress={() => openDeleteDialog(item)}
-            _text={{ fontSize: "xs" }}
-            _pressed={{ opacity: 0.7 }}
-            isDisabled={isDeleting}
-          >
-            Eliminar
-          </Button>
+          {/* ✅ Botón condicional: Desactivar o Reactivar */}
+          {item.status === "active" ? (
+            <Button
+              variant="outline"
+              colorScheme="orange"
+              size="sm"
+              leftIcon={
+                <Icon
+                  as={MaterialIcons}
+                  name="visibility-off"
+                  size="xs"
+                />
+              }
+              onPress={() => openDeactivateDialog(item)}
+              _text={{ fontSize: "xs" }}
+              _pressed={{ opacity: 0.7 }}
+              isDisabled={isDeleting}
+            >
+              Desactivar
+            </Button>
+          ) : (
+            <Button
+              variant="outline"
+              colorScheme="green"
+              size="sm"
+              leftIcon={
+                <Icon
+                  as={MaterialIcons}
+                  name="visibility"
+                  size="xs"
+                />
+              }
+              onPress={() => handleReactivateJob(item)}
+              _text={{ fontSize: "xs" }}
+              _pressed={{ opacity: 0.7 }}
+              isDisabled={isDeleting}
+            >
+              Reactivar
+            </Button>
+          )}
         </HStack>
       </HStack>
     </Box>
@@ -467,7 +520,7 @@ export default function JobsListScreen() {
         />
       )}
 
-      {/* ✅ Modal hermoso con toast funcionando */}
+      {/* ✅ Modal actualizado para desactivar */}
       <AlertDialog
         leastDestructiveRef={cancelRef}
         isOpen={isOpen}
@@ -487,13 +540,14 @@ export default function JobsListScreen() {
               fontSize="lg"
               fontWeight="bold"
             >
-              Eliminar Empleo
+              Desactivar Empleo
             </Text>
           </AlertDialog.Header>
           <AlertDialog.Body bg="gray.800">
             <Text color="gray.300">
-              ¿Estás seguro de que deseas eliminar el empleo
-              {selectedJob?.title}? Esta acción no se puede deshacer.
+              ¿Estás seguro de que deseas desactivar el empleo
+              {selectedJob?.title}? El empleo dejará de ser visible para los
+              candidatos, pero podrás reactivarlo cuando lo desees.
             </Text>
           </AlertDialog.Body>
           <AlertDialog.Footer
@@ -510,19 +564,19 @@ export default function JobsListScreen() {
               >
                 Cancelar
               </Button>
-              {/* ✅ Botón que ejecuta eliminación con toast */}
+              {/* ✅ Botón que ejecuta desactivación */}
               <Button
-                bg="red.600"
-                _pressed={{ bg: "red.700" }}
-                onPress={handleDeleteJob}
+                bg="orange.600"
+                _pressed={{ bg: "orange.700" }}
+                onPress={handleDeactivateJob}
                 isLoading={isDeleting}
                 isDisabled={isDeleting}
                 _loading={{
-                  bg: "red.600",
+                  bg: "orange.600",
                   _text: { color: "white" },
                 }}
               >
-                {isDeleting ? "Eliminando..." : "Eliminar"}
+                {isDeleting ? "Desactivando..." : "Desactivar"}
               </Button>
             </Button.Group>
           </AlertDialog.Footer>

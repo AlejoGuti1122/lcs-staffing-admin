@@ -2,6 +2,7 @@
 import { initializeApp } from "firebase/app"
 import { getAuth } from "firebase/auth"
 import { getFirestore } from "firebase/firestore"
+import { getStorage } from "firebase/storage" // 👈 Agregar esta línea
 
 // Configuración de Firebase con fallbacks
 const firebaseConfig = {
@@ -33,5 +34,8 @@ export const auth = getAuth(app)
 
 // Inicializar Firestore
 export const db = getFirestore(app)
+
+// Inicializar Storage
+export const storage = getStorage(app) // 👈 Agregar esta línea
 
 export default app

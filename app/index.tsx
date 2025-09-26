@@ -1,11 +1,20 @@
-import { MaterialIcons } from "@expo/vector-icons"
 import { router } from "expo-router"
 import { StatusBar } from "expo-status-bar"
 import { signInWithEmailAndPassword } from "firebase/auth"
 import { doc, setDoc } from "firebase/firestore"
 import { Box, Button, HStack, Text, VStack } from "native-base"
-import React, { useState } from "react"
-import { StyleSheet, TextInput, View } from "react-native"
+import React, { useRef, useState } from "react"
+import {
+  Keyboard,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  TextInput,
+  TouchableWithoutFeedback,
+  View,
+} from "react-native"
+import { TextInput as PaperTextInput } from "react-native-paper"
 import { auth, db } from "../config/firebase"
 import { useElegantToast } from "./hooks/useElegantToast"
 
@@ -15,6 +24,12 @@ export default function LoginScreen() {
   const [emailError, setEmailError] = useState<string>("")
   const [passwordError, setPasswordError] = useState<string>("")
   const [isLoading, setIsLoading] = useState<boolean>(false)
+  const [resetKey, setResetKey] = useState<number>(0)
+
+  // Referencias para los inputs
+  const emailInputRef = useRef<TextInput>(null)
+  const passwordInputRef = useRef<TextInput>(null)
+
   const elegantToast = useElegantToast()
 
   // Validación de email
@@ -40,7 +55,7 @@ export default function LoginScreen() {
     return ""
   }
 
-  // Manejar cambio de email - SOLO limpiar errores
+  // Manejar cambio de email
   const handleEmailChange = (value: string): void => {
     setEmail(value)
     if (emailError) {
@@ -48,7 +63,7 @@ export default function LoginScreen() {
     }
   }
 
-  // Manejar cambio de contraseña - SOLO limpiar errores
+  // Manejar cambio de contraseña
   const handlePasswordChange = (value: string): void => {
     setPassword(value)
     if (passwordError) {
@@ -65,16 +80,21 @@ export default function LoginScreen() {
     setPasswordError(validatePassword(password))
   }
 
-  // Función de login original
+  // Función para cerrar el teclado
+  const dismissKeyboard = (): void => {
+    Keyboard.dismiss()
+  }
+
+  // Función de login
   const handleLogin = async (): Promise<void> => {
-    // Validar campos
+    dismissKeyboard()
+
     const emailErr = validateEmail(email)
     const passwordErr = validatePassword(password)
 
     setEmailError(emailErr)
     setPasswordError(passwordErr)
 
-    // Si hay errores, no continuar
     if (emailErr || passwordErr) {
       return
     }
@@ -82,7 +102,6 @@ export default function LoginScreen() {
     setIsLoading(true)
 
     try {
-      // Autenticar con Firebase
       const userCredential = await signInWithEmailAndPassword(
         auth,
         email,
@@ -92,7 +111,6 @@ export default function LoginScreen() {
 
       console.log("Usuario autenticado:", user.uid)
 
-      // Guardar datos reales de login en Firestore
       try {
         console.log("Guardando datos de login en Firestore...")
 
@@ -128,14 +146,12 @@ export default function LoginScreen() {
         console.error("Error guardando en Firestore:", firestoreError)
       }
 
-      // Mostrar mensaje de éxito
       elegantToast.success({
         title: "¡Bienvenido!",
         description: "Has iniciado sesión correctamente",
         duration: 4000,
       })
 
-      // Navegar a la lista de empleos usando Expo Router
       router.push("/jobList")
     } catch (error: any) {
       console.error("Error completo en login:", error)
@@ -149,6 +165,10 @@ export default function LoginScreen() {
         case "auth/wrong-password":
           errorMessage = "Contraseña incorrecta"
           break
+        case "auth/invalid-credential":
+          errorMessage =
+            "Credenciales inválidas. Verifica tu correo y contraseña"
+          break
         case "auth/invalid-email":
           errorMessage = "Formato de correo inválido"
           break
@@ -160,10 +180,6 @@ export default function LoginScreen() {
           break
         case "auth/network-request-failed":
           errorMessage = "Error de conexión. Verifica tu internet"
-          break
-        case "auth/invalid-credential":
-          errorMessage =
-            "Credenciales inválidas. Verifica tu correo y contraseña"
           break
         case "auth/operation-not-allowed":
           errorMessage =
@@ -178,6 +194,12 @@ export default function LoginScreen() {
         description: errorMessage,
         duration: 5000,
       })
+
+      setResetKey((prev) => prev + 1)
+
+      setTimeout(() => {
+        emailInputRef.current?.focus()
+      }, 200)
     } finally {
       setIsLoading(false)
     }
@@ -194,179 +216,196 @@ export default function LoginScreen() {
     <Box
       flex={1}
       bg="gray.900"
-      px={6}
-      justifyContent="center"
       safeArea
     >
       <StatusBar style="light" />
 
-      <VStack
-        alignItems="center"
-        mb={10}
+      <KeyboardAvoidingView
+        style={styles.keyboardAvoidingView}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
       >
-        <HStack
-          alignItems="center"
-          mb={2}
-        >
-          <Box
-            bg="primary.500"
-            px={2}
-            py={1}
-            borderRadius="sm"
+        <TouchableWithoutFeedback onPress={dismissKeyboard}>
+          <ScrollView
+            contentContainerStyle={styles.scrollViewContent}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
           >
-            <Text
-              color="white"
-              fontWeight="bold"
-              fontSize="sm"
-            >
-              LCS
-            </Text>
-          </Box>
-          <Text
-            color="white"
-            fontSize="xl"
-            ml={3}
-            fontWeight="medium"
-          >
-            Iniciar Sesión
-          </Text>
-        </HStack>
-      </VStack>
+            <View style={styles.container}>
+              <VStack
+                alignItems="center"
+                mb={10}
+              >
+                <HStack
+                  alignItems="center"
+                  mb={2}
+                >
+                  <Box
+                    bg="primary.500"
+                    px={2}
+                    py={1}
+                    borderRadius="sm"
+                  >
+                    <Text
+                      color="white"
+                      fontWeight="bold"
+                      fontSize="sm"
+                    >
+                      LCS
+                    </Text>
+                  </Box>
+                  <Text
+                    color="white"
+                    fontSize="xl"
+                    ml={3}
+                    fontWeight="medium"
+                  >
+                    Iniciar Sesión
+                  </Text>
+                </HStack>
+              </VStack>
 
-      <VStack space={6}>
-        {/* Correo con TextInput nativo */}
-        <Box>
-          <Text
-            color="white"
-            mb={3}
-            fontSize="md"
-          >
-            Correo
-          </Text>
-          <View
-            style={[
-              styles.inputContainer,
-              { borderColor: emailError ? "#ef4444" : "#404040" },
-            ]}
-          >
-            <MaterialIcons
-              name="email"
-              size={20}
-              color={emailError ? "#ef4444" : "#9ca3af"}
-              style={styles.icon}
-            />
-            <TextInput
-              style={styles.textInput}
-              placeholder="tu@correo.com"
-              placeholderTextColor="#9ca3af"
-              value={email}
-              onChangeText={handleEmailChange}
-              onBlur={handleEmailBlur}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoComplete="email"
-              textContentType="emailAddress"
-            />
-          </View>
-          {emailError ? (
-            <Text
-              color="red.500"
-              fontSize="sm"
-              mt={1}
-            >
-              {emailError}
-            </Text>
-          ) : null}
-        </Box>
+              <VStack space={6}>
+                {/* Correo con React Native Paper */}
+                <Box>
+                  <Text
+                    color="white"
+                    mb={3}
+                    fontSize="md"
+                  >
+                    Correo
+                  </Text>
+                  <PaperTextInput
+                    mode="outlined"
+                    placeholder="tu@correo.com"
+                    value={email}
+                    onChangeText={handleEmailChange}
+                    onBlur={handleEmailBlur}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    autoComplete="email"
+                    textContentType="emailAddress"
+                    returnKeyType="next"
+                    onSubmitEditing={() => passwordInputRef.current?.focus()}
+                    left={<PaperTextInput.Icon icon="email" />}
+                    error={!!emailError}
+                    style={styles.paperInput}
+                    outlineStyle={styles.paperOutline}
+                    contentStyle={styles.paperInputContent}
+                    theme={{
+                      colors: {
+                        primary: emailError ? "#ef4444" : "#3b82f6",
+                        outline: emailError ? "#ef4444" : "#d1d5db",
+                        onSurfaceVariant: "#9ca3af",
+                      },
+                    }}
+                  />
+                  {emailError ? (
+                    <Text
+                      color="red.500"
+                      fontSize="sm"
+                      mt={1}
+                    >
+                      {emailError}
+                    </Text>
+                  ) : null}
+                </Box>
 
-        {/* Contraseña con TextInput nativo */}
-        <Box>
-          <Text
-            color="white"
-            mb={3}
-            fontSize="md"
-          >
-            Contraseña
-          </Text>
-          <View
-            style={[
-              styles.inputContainer,
-              { borderColor: passwordError ? "#ef4444" : "#404040" },
-            ]}
-          >
-            <MaterialIcons
-              name="lock"
-              size={20}
-              color={passwordError ? "#ef4444" : "#9ca3af"}
-              style={styles.icon}
-            />
-            <TextInput
-              style={styles.textInput}
-              placeholder="••••••••"
-              placeholderTextColor="#9ca3af"
-              value={password}
-              onChangeText={handlePasswordChange}
-              onBlur={handlePasswordBlur}
-              secureTextEntry
-              autoComplete="current-password"
-              textContentType="password"
-            />
-          </View>
-          {passwordError ? (
-            <Text
-              color="red.500"
-              fontSize="sm"
-              mt={1}
-            >
-              {passwordError}
-            </Text>
-          ) : null}
-        </Box>
+                {/* Contraseña con React Native Paper */}
+                <Box>
+                  <Text
+                    color="white"
+                    mb={3}
+                    fontSize="md"
+                  >
+                    Contraseña
+                  </Text>
+                  <PaperTextInput
+                    mode="outlined"
+                    placeholder="••••••••"
+                    value={password}
+                    onChangeText={handlePasswordChange}
+                    onBlur={handlePasswordBlur}
+                    secureTextEntry
+                    autoComplete="current-password"
+                    textContentType="password"
+                    returnKeyType="done"
+                    onSubmitEditing={handleLogin}
+                    left={<PaperTextInput.Icon icon="lock" />}
+                    error={!!passwordError}
+                    style={styles.paperInput}
+                    outlineStyle={styles.paperOutline}
+                    contentStyle={styles.paperInputContent}
+                    theme={{
+                      colors: {
+                        primary: passwordError ? "#ef4444" : "#3b82f6",
+                        outline: passwordError ? "#ef4444" : "#d1d5db",
+                        onSurfaceVariant: "#9ca3af",
+                      },
+                    }}
+                  />
+                  {passwordError ? (
+                    <Text
+                      color="red.500"
+                      fontSize="sm"
+                      mt={1}
+                    >
+                      {passwordError}
+                    </Text>
+                  ) : null}
+                </Box>
 
-        {/* Botón de login */}
-        <Button
-          bg={isFormValid ? "primary.500" : "gray.600"}
-          _pressed={{ bg: isFormValid ? "primary.600" : "gray.700" }}
-          _text={{
-            fontWeight: "medium",
-            fontSize: "md",
-            color: "white",
-          }}
-          borderRadius="lg"
-          py={4}
-          mt={6}
-          onPress={handleLogin}
-          isLoading={isLoading}
-          isDisabled={!isFormValid || isLoading}
-          _loading={{
-            bg: "primary.500",
-            _text: { color: "white" },
-          }}
-        >
-          {isLoading ? "Iniciando..." : "Iniciar Sesión"}
-        </Button>
-      </VStack>
+                {/* Botón de login */}
+                <Button
+                  bg={isFormValid ? "primary.500" : "gray.600"}
+                  _pressed={{ bg: isFormValid ? "primary.600" : "gray.700" }}
+                  _text={{
+                    fontWeight: "medium",
+                    fontSize: "md",
+                    color: "white",
+                  }}
+                  borderRadius="lg"
+                  py={4}
+                  mt={6}
+                  onPress={handleLogin}
+                  isLoading={isLoading}
+                  isDisabled={!isFormValid || isLoading}
+                  _loading={{
+                    bg: "primary.500",
+                    _text: { color: "white" },
+                  }}
+                >
+                  {isLoading ? "Iniciando..." : "Iniciar Sesión"}
+                </Button>
+              </VStack>
+            </View>
+          </ScrollView>
+        </TouchableWithoutFeedback>
+      </KeyboardAvoidingView>
     </Box>
   )
 }
 
 const styles = StyleSheet.create({
-  inputContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#262626",
-    borderRadius: 12,
-    borderWidth: 1,
-    paddingVertical: 16,
-    paddingHorizontal: 16,
-  },
-  icon: {
-    marginRight: 12,
-  },
-  textInput: {
+  keyboardAvoidingView: {
     flex: 1,
-    color: "white",
+  },
+  scrollViewContent: {
+    flexGrow: 1,
+    justifyContent: "center",
+  },
+  container: {
+    paddingHorizontal: 24,
+    paddingVertical: 20,
+  },
+  paperInput: {
+    backgroundColor: "white",
     fontSize: 16,
-    padding: 0, // Importante para evitar padding extra
+  },
+  paperInputContent: {
+    paddingLeft: 8, // Espacio adicional a la izquierda del texto
+  },
+  paperOutline: {
+    borderRadius: 12,
   },
 })
