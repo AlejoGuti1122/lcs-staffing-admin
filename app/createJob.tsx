@@ -2,27 +2,28 @@ import { MaterialIcons } from "@expo/vector-icons"
 import * as ImagePicker from "expo-image-picker"
 import { router } from "expo-router"
 import { StatusBar } from "expo-status-bar"
+import { getAuth } from "firebase/auth"
 import { addDoc, collection, serverTimestamp } from "firebase/firestore"
 import { getDownloadURL, ref, uploadBytes } from "firebase/storage"
 import {
   Box,
-  Button,
   HStack,
   Icon,
+  Image,
   Input,
   Pressable,
   ScrollView,
+  Spinner,
   Text,
   VStack,
 } from "native-base"
-import React, { useRef, useState } from "react"
+import React, { useEffect, useRef, useState } from "react"
 import {
   Alert,
   KeyboardAvoidingView,
   Platform,
   StyleSheet,
   TextInput,
-  View,
 } from "react-native"
 import { db, storage } from "../config/firebase"
 import { useElegantToast } from "./hooks/useElegantToast"
@@ -31,9 +32,7 @@ interface FormData {
   title: string
   description: string
   company: string
-  location: string
-  salary: string
-  requirements: string
+  address: string
   imageUri?: string
 }
 
@@ -48,28 +47,34 @@ export default function CreateJobScreen() {
     title: "",
     description: "",
     company: "",
-    location: "",
-    salary: "",
-    requirements: "",
+    address: "",
     imageUri: undefined,
   })
   const [errors, setErrors] = useState<FormErrors>({})
   const [isLoading, setIsLoading] = useState<boolean>(false)
   const [imageUploading, setImageUploading] = useState<boolean>(false)
 
+  // Account Manager (usuario logueado)
+  const [accountManager, setAccountManager] = useState<string>("")
+
   // Estados para responsabilidades dinámicas
   const [responsibilities, setResponsibilities] = useState<string[]>([])
   const [currentResponsibility, setCurrentResponsibility] = useState<string>("")
 
-  // Estados para requisitos dinámicos
-  const [requirements, setRequirements] = useState<string[]>([])
-  const [currentRequirement, setCurrentRequirement] = useState<string>("")
-
-  // Referencias para scroll automático
+  // Referencias para scroll automático y para el input de archivo en web
   const scrollViewRef = useRef<any>(null)
-  const requirementsRef = useRef<any>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const elegantToast = useElegantToast()
+  const auth = getAuth()
+
+  // Obtener el nombre del usuario logueado
+  useEffect(() => {
+    const user = auth.currentUser
+    if (user) {
+      setAccountManager(user.displayName || user.email || "Admin")
+    }
+  }, [])
 
   // Función para agregar responsabilidad
   const addResponsibility = () => {
@@ -87,23 +92,33 @@ export default function CreateJobScreen() {
     setResponsibilities(responsibilities.filter((_, i) => i !== index))
   }
 
-  // Función para agregar requisito
-  const addRequirement = () => {
-    if (
-      currentRequirement.trim() &&
-      !requirements.includes(currentRequirement.trim())
-    ) {
-      setRequirements([...requirements, currentRequirement.trim()])
-      setCurrentRequirement("")
+  // ============= FUNCIONES PARA WEB =============
+  const pickImageWeb = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.click()
     }
   }
 
-  // Función para eliminar requisito
-  const removeRequirement = (index: number) => {
-    setRequirements(requirements.filter((_, i) => i !== index))
+  const handleFileChangeWeb = (event: any) => {
+    const file = event.target.files?.[0]
+    if (file) {
+      // Validar que sea una imagen
+      if (!file.type.startsWith("image/")) {
+        elegantToast.error({
+          title: "Archivo inválido",
+          description: "Por favor selecciona una imagen",
+          duration: 3000,
+        })
+        return
+      }
+
+      // Crear URL local para preview
+      const imageUrl = URL.createObjectURL(file)
+      setFormData({ ...formData, imageUri: imageUrl })
+    }
   }
 
-  // Función para pedir permisos
+  // ============= FUNCIONES PARA MÓVIL =============
   const requestPermissions = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync()
     if (status !== "granted") {
@@ -117,9 +132,8 @@ export default function CreateJobScreen() {
     return true
   }
 
-  // Función para seleccionar imagen
-  const pickImage = async () => {
-    console.log("pickImage function called!")
+  const pickImageMobile = async () => {
+    console.log("pickImageMobile function called!")
     try {
       const hasPermission = await requestPermissions()
       console.log("Permission result:", hasPermission)
@@ -139,11 +153,10 @@ export default function CreateJobScreen() {
         setFormData({ ...formData, imageUri: result.assets[0].uri })
       }
     } catch (error) {
-      console.error("Error in pickImage:", error)
+      console.error("Error in pickImageMobile:", error)
     }
   }
 
-  // Función para tomar foto con cámara
   const takePhoto = async () => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync()
     if (status !== "granted") {
@@ -166,32 +179,42 @@ export default function CreateJobScreen() {
     }
   }
 
-  // Función para mostrar opciones de imagen
+  // ============= FUNCIÓN UNIFICADA PARA SELECCIONAR IMAGEN =============
   const showImageOptions = () => {
-    Alert.alert(
-      "Agregar Imagen",
-      "Selecciona una opción",
-      [
-        {
-          text: "Galería",
-          onPress: pickImage,
-        },
-        {
-          text: "Cámara",
-          onPress: takePhoto,
-        },
-        {
-          text: "Cancelar",
-          style: "cancel",
-        },
-      ],
-      { cancelable: true }
-    )
+    if (Platform.OS === "web") {
+      // En web, solo abrir el selector de archivos
+      pickImageWeb()
+    } else {
+      // En móvil, mostrar opciones de galería o cámara
+      Alert.alert(
+        "Agregar Imagen",
+        "Selecciona una opción",
+        [
+          {
+            text: "Galería",
+            onPress: pickImageMobile,
+          },
+          {
+            text: "Cámara",
+            onPress: takePhoto,
+          },
+          {
+            text: "Cancelar",
+            style: "cancel",
+          },
+        ],
+        { cancelable: true }
+      )
+    }
   }
 
   // Función para eliminar imagen
   const removeImage = () => {
     setFormData({ ...formData, imageUri: undefined })
+    // Limpiar el input file en web
+    if (Platform.OS === "web" && fileInputRef.current) {
+      fileInputRef.current.value = ""
+    }
   }
 
   // Función para subir imagen a Firebase Storage
@@ -199,18 +222,27 @@ export default function CreateJobScreen() {
     try {
       setImageUploading(true)
 
-      const response = await fetch(uri)
-      const blob = await response.blob()
-
       const timestamp = Date.now()
       const imageName = `jobs/${timestamp}_image.jpg`
-
       const imageRef = ref(storage, imageName)
 
-      await uploadBytes(imageRef, blob)
+      if (Platform.OS === "web") {
+        // En web, usar el archivo directamente del input para evitar problemas de CORS
+        const fileInput = fileInputRef.current
+        if (fileInput?.files?.[0]) {
+          const file = fileInput.files[0]
+          await uploadBytes(imageRef, file)
+        } else {
+          throw new Error("No se encontró el archivo")
+        }
+      } else {
+        // En móvil, convertir URI a blob
+        const response = await fetch(uri)
+        const blob = await response.blob()
+        await uploadBytes(imageRef, blob)
+      }
 
       const downloadURL = await getDownloadURL(imageRef)
-
       return downloadURL
     } catch (error) {
       console.error("Error subiendo imagen:", error)
@@ -228,7 +260,7 @@ export default function CreateJobScreen() {
       case "description":
         return !value ? "La descripción es requerida" : ""
       case "company":
-        return !value ? "El nombre de la empresa es requerido" : ""
+        return !value ? "El cliente/empresa es requerido" : ""
       default:
         return ""
     }
@@ -242,13 +274,6 @@ export default function CreateJobScreen() {
         [field as keyof FormErrors]: validateField(field, value),
       })
     }
-  }
-
-  // Función para hacer scroll cuando se enfoca un campo
-  const handleRequirementsFocus = () => {
-    setTimeout(() => {
-      scrollViewRef.current?.scrollToEnd({ animated: true })
-    }, 300)
   }
 
   const handleCreateJob = async (): Promise<void> => {
@@ -269,7 +294,9 @@ export default function CreateJobScreen() {
     try {
       let imageURL = null
 
-      if (formData.imageUri) {
+      // Intentar subir imagen solo si existe y si estamos en móvil
+      // En web, saltar la imagen por ahora debido a problemas de CORS
+      if (formData.imageUri && Platform.OS !== "web") {
         try {
           imageURL = await uploadImage(formData.imageUri)
         } catch (imageError) {
@@ -287,13 +314,12 @@ export default function CreateJobScreen() {
         title: formData.title,
         description: formData.description,
         company: formData.company,
-        location: formData.location,
-        salary: formData.salary,
-        requirements: requirements, // Usar el nuevo array de requisitos
-        responsibilities: responsibilities, // Nueva propiedad para responsabilidades
+        address: formData.address,
+        accountManager: accountManager,
+        responsibilities: responsibilities,
         imageURL: imageURL,
         createdAt: serverTimestamp(),
-        createdBy: "admin",
+        createdBy: auth.currentUser?.uid || "unknown",
         status: "active",
       }
 
@@ -336,6 +362,17 @@ export default function CreateJobScreen() {
         safeArea
       >
         <StatusBar style="light" />
+
+        {/* Input file oculto para web */}
+        {Platform.OS === "web" && (
+          <input
+            ref={fileInputRef as any}
+            type="file"
+            accept="image/*"
+            style={{ display: "none" }}
+            onChange={handleFileChangeWeb}
+          />
+        )}
 
         {/* Header */}
         <HStack
@@ -398,10 +435,10 @@ export default function CreateJobScreen() {
                 mb={3}
                 fontSize="md"
               >
-                Título del Empleo *
+                Título *
               </Text>
               <Input
-                placeholder="ej. Desarrollador Frontend"
+                placeholder="ej. Landscapers"
                 placeholderTextColor="gray.400"
                 bg="gray.800"
                 borderColor={errors.title ? "red.500" : "gray.700"}
@@ -447,17 +484,17 @@ export default function CreateJobScreen() {
               ) : null}
             </Box>
 
-            {/* Empresa */}
+            {/* Cliente/Empresa */}
             <Box>
               <Text
                 color="white"
                 mb={3}
                 fontSize="md"
               >
-                Empresa *
+                Cliente/Empresa *
               </Text>
               <Input
-                placeholder="ej. Tech Solutions"
+                placeholder="ej. Global Exchange"
                 placeholderTextColor="gray.400"
                 bg="gray.800"
                 borderColor={errors.company ? "red.500" : "gray.700"}
@@ -503,60 +540,80 @@ export default function CreateJobScreen() {
               ) : null}
             </Box>
 
-            {/* Ubicación */}
+            {/* Dirección */}
             <Box>
               <Text
                 color="white"
                 mb={3}
                 fontSize="md"
               >
-                Ubicación
+                Dirección
               </Text>
-              <View style={styles.inputContainer}>
-                <MaterialIcons
-                  name="location-on"
-                  size={20}
-                  color="#9ca3af"
-                  style={styles.icon}
-                />
-                <TextInput
-                  style={styles.textInput}
-                  placeholder="ej. Medellín, Colombia"
-                  placeholderTextColor="#9ca3af"
-                  value={formData.location}
-                  onChangeText={(value: string) =>
-                    handleFieldChange("location", value)
-                  }
-                />
-              </View>
+              <Input
+                placeholder="ej. 123 Main St, Miami, FL"
+                placeholderTextColor="gray.400"
+                bg="gray.800"
+                borderColor="gray.700"
+                borderWidth={1}
+                borderRadius="lg"
+                color="white"
+                fontSize="md"
+                py={4}
+                _focus={{
+                  borderColor: "primary.500",
+                  bg: "gray.800",
+                }}
+                style={{ backgroundColor: "#262626" }}
+                InputLeftElement={
+                  <Icon
+                    as={MaterialIcons}
+                    name="location-on"
+                    ml={4}
+                    color="gray.400"
+                    size="md"
+                  />
+                }
+                value={formData.address}
+                onChangeText={(value: string) =>
+                  handleFieldChange("address", value)
+                }
+              />
             </Box>
 
-            {/* Salario */}
+            {/* Account Manager (solo lectura) */}
             <Box>
               <Text
                 color="white"
                 mb={3}
                 fontSize="md"
               >
-                Salario
+                Account Manager
               </Text>
-              <View style={styles.inputContainer}>
-                <MaterialIcons
-                  name="attach-money"
-                  size={20}
-                  color="#9ca3af"
-                  style={styles.icon}
-                />
-                <TextInput
-                  style={styles.textInput}
-                  placeholder="ej. $2,000,000 - $3,500,000 COP"
-                  placeholderTextColor="#9ca3af"
-                  value={formData.salary}
-                  onChangeText={(value: string) =>
-                    handleFieldChange("salary", value)
-                  }
-                />
-              </View>
+              <Box
+                bg="gray.800"
+                borderColor="gray.700"
+                borderWidth={1}
+                borderRadius="lg"
+                px={4}
+                py={4}
+                style={{ backgroundColor: "#262626" }}
+              >
+                <HStack alignItems="center">
+                  <Icon
+                    as={MaterialIcons}
+                    name="person"
+                    color="primary.500"
+                    size="md"
+                    mr={3}
+                  />
+                  <Text
+                    color="white"
+                    fontSize="md"
+                  >
+                    {accountManager || "Cargando..."}
+                  </Text>
+                </HStack>
+              </Box>
             </Box>
 
             {/* Descripción */}
@@ -577,14 +634,14 @@ export default function CreateJobScreen() {
                 style={{ backgroundColor: "#262626" }}
               >
                 <TextInput
-                  placeholder="Describe las responsabilidades del cargo, beneficios, modalidad de trabajo, etc."
+                  placeholder="Descripción general del empleo"
                   placeholderTextColor="#9ca3af"
                   multiline
-                  numberOfLines={5}
+                  numberOfLines={4}
                   style={{
                     color: "white",
                     fontSize: 16,
-                    minHeight: 120,
+                    minHeight: 100,
                     textAlignVertical: "top",
                     borderWidth: 0,
                   }}
@@ -601,14 +658,6 @@ export default function CreateJobScreen() {
                       ),
                     })
                   }
-                  onFocus={() => {
-                    setTimeout(() => {
-                      scrollViewRef.current?.scrollTo({
-                        y: 400,
-                        animated: true,
-                      })
-                    }, 300)
-                  }}
                 />
               </Box>
               {errors.description ? (
@@ -622,173 +671,123 @@ export default function CreateJobScreen() {
               ) : null}
             </Box>
 
-            {/* Requisitos - Nueva sección moderna */}
+            {/* Imagen */}
             <Box>
               <Text
                 color="white"
                 mb={3}
                 fontSize="md"
               >
-                Requisitos del Cargo
+                Imagen del empleo
               </Text>
 
-              {/* Input para agregar requisitos */}
-              <HStack
-                space={2}
-                mb={3}
-              >
-                <Input
-                  flex={1}
-                  placeholder="ej. React Native, 2 años experiencia"
-                  placeholderTextColor="gray.400"
-                  bg="gray.800"
-                  borderColor="gray.700"
-                  borderWidth={1}
-                  borderRadius="lg"
-                  color="white"
-                  fontSize="md"
-                  py={3}
-                  _focus={{
-                    borderColor: "primary.500",
-                    bg: "gray.800",
-                  }}
-                  style={{ backgroundColor: "#262626" }}
-                  value={currentRequirement}
-                  onChangeText={setCurrentRequirement}
-                  onSubmitEditing={addRequirement}
-                  returnKeyType="done"
-                />
-                <Button
-                  bg="primary.500"
-                  _pressed={{ bg: "primary.600" }}
-                  px={4}
-                  onPress={addRequirement}
-                  isDisabled={!currentRequirement.trim()}
-                >
-                  <Icon
-                    as={MaterialIcons}
-                    name="add"
-                    color="white"
-                    size="sm"
+              {formData.imageUri ? (
+                <Box position="relative">
+                  <Image
+                    source={{ uri: formData.imageUri }}
+                    alt="Imagen del empleo"
+                    width="100%"
+                    height={200}
+                    borderRadius="lg"
                   />
-                </Button>
-              </HStack>
-
-              {/* Lista de requisitos agregados */}
-              {requirements.length > 0 && (
-                <VStack
-                  space={2}
-                  mb={3}
-                >
-                  <Text
-                    color="gray.400"
-                    fontSize="sm"
+                  <Pressable
+                    position="absolute"
+                    top={2}
+                    right={2}
+                    bg="red.500"
+                    p={2}
+                    borderRadius="full"
+                    onPress={removeImage}
                   >
-                    Requisitos agregados ({requirements.length}):
-                  </Text>
-                  <Box>
-                    {requirements.map((requirement, index) => (
-                      <HStack
-                        key={index}
-                        bg="gray.800"
-                        px={3}
-                        py={2}
-                        mb={2}
-                        borderRadius="md"
-                        justifyContent="space-between"
-                        alignItems="center"
-                        style={{ backgroundColor: "#262626" }}
-                      >
-                        <Text
-                          color="white"
-                          fontSize="sm"
-                          flex={1}
-                          mr={2}
-                        >
-                          • {requirement}
-                        </Text>
-                        <Pressable
-                          onPress={() => removeRequirement(index)}
-                          p={1}
-                        >
-                          <Icon
-                            as={MaterialIcons}
-                            name="close"
-                            color="red.400"
-                            size="sm"
-                          />
-                        </Pressable>
-                      </HStack>
-                    ))}
-                  </Box>
-                </VStack>
-              )}
-
-              {/* Mensaje cuando no hay requisitos */}
-              {requirements.length === 0 && (
-                <Box
-                  bg="gray.800"
-                  p={4}
-                  borderRadius="lg"
-                  borderWidth={1}
-                  borderColor="gray.700"
-                  borderStyle="dashed"
-                  style={{ backgroundColor: "#262626" }}
-                >
-                  <Text
-                    color="gray.400"
-                    fontSize="sm"
-                    textAlign="center"
-                  >
-                    Agrega los requisitos necesarios para el cargo
-                  </Text>
+                    <Icon
+                      as={MaterialIcons}
+                      name="close"
+                      color="white"
+                      size="sm"
+                    />
+                  </Pressable>
                 </Box>
+              ) : (
+                <Pressable onPress={showImageOptions}>
+                  <Box
+                    bg="gray.800"
+                    borderWidth={2}
+                    borderColor="gray.700"
+                    borderStyle="dashed"
+                    borderRadius="lg"
+                    py={12}
+                    alignItems="center"
+                    style={{ backgroundColor: "#262626" }}
+                  >
+                    <Icon
+                      as={MaterialIcons}
+                      name="add-photo-alternate"
+                      color="gray.400"
+                      size="2xl"
+                      mb={2}
+                    />
+                    <Text
+                      color="gray.400"
+                      fontSize="md"
+                    >
+                      {Platform.OS === "web"
+                        ? "Seleccionar imagen"
+                        : "Agregar imagen"}
+                    </Text>
+                    {Platform.OS !== "web" && (
+                      <Text
+                        color="gray.500"
+                        fontSize="sm"
+                        mt={1}
+                      >
+                        Galería o Cámara
+                      </Text>
+                    )}
+                  </Box>
+                </Pressable>
               )}
             </Box>
 
             {/* Botón Crear */}
-            <Button
-              bg={isFormValid ? "primary.500" : "gray.600"}
-              _pressed={{
-                bg: isFormValid ? "primary.600" : "gray.700",
-                opacity: 0.8,
-              }}
-              _disabled={{
-                bg: "gray.600",
-                opacity: 0.6,
-                _text: { color: "gray.400" },
-              }}
-              _text={{
-                fontWeight: "medium",
-                fontSize: "md",
-                color: "white",
-              }}
-              _loading={{
-                bg: "primary.500",
-                _text: { color: "white" },
-                opacity: 0.8,
-              }}
-              borderRadius="lg"
-              py={4}
-              mt={4}
-              mb={2}
-              onPress={handleCreateJob}
-              isLoading={isLoading || imageUploading}
-              isDisabled={!isFormValid || isLoading || imageUploading}
-              accessibilityRole="button"
-              accessibilityLabel={
-                isLoading ? "Creando empleo..." : "Crear empleo"
-              }
-            >
-              {imageUploading
-                ? "Subiendo imagen..."
-                : isLoading
-                ? "Creando..."
-                : "Crear Empleo"}
-            </Button>
-
-            {/* Espaciado extra para el teclado */}
-            <Box h={200} />
+            <Box pb={4}>
+              <Pressable
+                onPress={handleCreateJob}
+                bg={isFormValid ? "primary.500" : "gray.700"}
+                py={4}
+                borderRadius="lg"
+                opacity={isLoading || imageUploading ? 0.6 : 1}
+                disabled={!isFormValid || isLoading || imageUploading}
+              >
+                {isLoading || imageUploading ? (
+                  <HStack
+                    justifyContent="center"
+                    alignItems="center"
+                    space={2}
+                  >
+                    <Spinner
+                      color="white"
+                      size="sm"
+                    />
+                    <Text
+                      color="white"
+                      fontSize="md"
+                      fontWeight="bold"
+                    >
+                      {imageUploading ? "Subiendo imagen..." : "Creando..."}
+                    </Text>
+                  </HStack>
+                ) : (
+                  <Text
+                    color="white"
+                    fontSize="md"
+                    fontWeight="bold"
+                    textAlign="center"
+                  >
+                    Crear Empleo
+                  </Text>
+                )}
+              </Pressable>
+            </Box>
           </VStack>
         </ScrollView>
       </Box>
