@@ -276,6 +276,7 @@ export default function LoginScreen() {
                     Correo
                   </Text>
                   <PaperTextInput
+                    ref={emailInputRef}
                     mode="outlined"
                     placeholder="tu@correo.com"
                     value={email}
@@ -321,6 +322,7 @@ export default function LoginScreen() {
                     Contraseña
                   </Text>
                   <PaperTextInput
+                    ref={passwordInputRef}
                     mode="outlined"
                     placeholder="••••••••"
                     value={password}
