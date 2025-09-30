@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
   <head>
     <meta charset="utf-8" />
     <meta
@@ -8,9 +8,31 @@
     />
     <meta
       name="viewport"
-      content="width=device-width, initial-scale=1, shrink-to-fit=no"
+      content="width=device-width, initial-scale=1, maximum-scale=5, user-scalable=yes, viewport-fit=cover"
+    />
+    <meta
+      name="mobile-web-app-capable"
+      content="yes"
+    />
+    <meta
+      name="apple-mobile-web-app-capable"
+      content="yes"
+    />
+    <meta
+      name="apple-mobile-web-app-status-bar-style"
+      content="default"
+    />
+    <meta
+      name="theme-color"
+      content="#171717"
     />
     <style>
+      * {
+        -webkit-tap-highlight-color: transparent;
+      }
+      body {
+        touch-action: manipulation;
+      }
       input,
       textarea {
         outline: none !important;
@@ -19,6 +41,7 @@
         -webkit-appearance: none !important;
         -moz-appearance: none !important;
         appearance: none !important;
+        touch-action: manipulation;
       }
       input:focus,
       textarea:focus {
