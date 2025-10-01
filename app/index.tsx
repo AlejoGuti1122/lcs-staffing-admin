@@ -10,13 +10,79 @@ import {
   Platform,
   ScrollView,
   StyleSheet,
-  TextInput,
   TouchableWithoutFeedback,
   View,
 } from "react-native"
 import { TextInput as PaperTextInput } from "react-native-paper"
 import { auth, db } from "../config/firebase"
 import { useElegantToast } from "./hooks/useElegantToast"
+
+// Componente de Input para WEB
+const WebInput = ({
+  inputRef,
+  placeholder,
+  value,
+  onChangeText,
+  onBlur,
+  type = "text",
+  error,
+  onSubmitEditing,
+  icon,
+}: any) => {
+  return (
+    <div
+      style={{
+        position: "relative",
+        width: "100%",
+      }}
+    >
+      <div
+        style={{
+          position: "absolute",
+          left: 12,
+          top: "50%",
+          transform: "translateY(-50%)",
+          fontSize: 20,
+          zIndex: 1,
+          pointerEvents: "none",
+        }}
+      >
+        {icon}
+      </div>
+      <input
+        ref={inputRef}
+        type={type}
+        placeholder={placeholder}
+        value={value}
+        onChange={(e) => onChangeText(e.target.value)}
+        onBlur={onBlur}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && onSubmitEditing) {
+            onSubmitEditing()
+          }
+        }}
+        style={{
+          width: "100%",
+          padding: "14px 16px 14px 44px",
+          fontSize: 16,
+          borderRadius: 12,
+          border: `2px solid ${error ? "#ef4444" : "#d1d5db"}`,
+          outline: "none",
+          backgroundColor: "white",
+          color: "#000",
+          transition: "border-color 0.2s",
+          boxSizing: "border-box",
+        }}
+        onFocus={(e) => {
+          e.target.style.borderColor = error ? "#ef4444" : "#3b82f6"
+        }}
+        onBlurCapture={(e) => {
+          e.target.style.borderColor = error ? "#ef4444" : "#d1d5db"
+        }}
+      />
+    </div>
+  )
+}
 
 export default function LoginScreen() {
   const [email, setEmail] = useState<string>("")
@@ -27,8 +93,8 @@ export default function LoginScreen() {
   const [resetKey, setResetKey] = useState<number>(0)
 
   // Referencias para los inputs
-  const emailInputRef = useRef<TextInput>(null)
-  const passwordInputRef = useRef<TextInput>(null)
+  const emailInputRef = useRef<any>(null)
+  const passwordInputRef = useRef<any>(null)
 
   const elegantToast = useElegantToast()
 
@@ -124,7 +190,7 @@ export default function LoginScreen() {
             userAgent:
               (typeof navigator !== "undefined" && navigator.userAgent) ||
               "unknown",
-            device: "web",
+            device: Platform.OS,
             createdAt: new Date().toISOString(),
           },
           { merge: true }
@@ -266,7 +332,7 @@ export default function LoginScreen() {
               </VStack>
 
               <VStack space={6}>
-                {/* Correo con React Native Paper */}
+                {/* Input de Correo - Diferentes según plataforma */}
                 <Box>
                   <Text
                     color="white"
@@ -275,32 +341,46 @@ export default function LoginScreen() {
                   >
                     Correo
                   </Text>
-                  <PaperTextInput
-                    ref={emailInputRef}
-                    mode="outlined"
-                    placeholder="tu@correo.com"
-                    value={email}
-                    onChangeText={handleEmailChange}
-                    onBlur={handleEmailBlur}
-                    keyboardType="email-address"
-                    autoCapitalize="none"
-                    autoComplete="email"
-                    textContentType="emailAddress"
-                    returnKeyType="next"
-                    onSubmitEditing={() => passwordInputRef.current?.focus()}
-                    left={<PaperTextInput.Icon icon="email" />}
-                    error={!!emailError}
-                    style={styles.paperInput}
-                    outlineStyle={styles.paperOutline}
-                    contentStyle={styles.paperInputContent}
-                    theme={{
-                      colors: {
-                        primary: emailError ? "#ef4444" : "#3b82f6",
-                        outline: emailError ? "#ef4444" : "#d1d5db",
-                        onSurfaceVariant: "#9ca3af",
-                      },
-                    }}
-                  />
+                  {Platform.OS === "web" ? (
+                    <WebInput
+                      inputRef={emailInputRef}
+                      placeholder="tu@correo.com"
+                      value={email}
+                      onChangeText={handleEmailChange}
+                      onBlur={handleEmailBlur}
+                      type="email"
+                      error={emailError}
+                      onSubmitEditing={() => passwordInputRef.current?.focus()}
+                      icon="📧"
+                    />
+                  ) : (
+                    <PaperTextInput
+                      ref={emailInputRef}
+                      mode="outlined"
+                      placeholder="tu@correo.com"
+                      value={email}
+                      onChangeText={handleEmailChange}
+                      onBlur={handleEmailBlur}
+                      keyboardType="email-address"
+                      autoCapitalize="none"
+                      autoComplete="email"
+                      textContentType="emailAddress"
+                      returnKeyType="next"
+                      onSubmitEditing={() => passwordInputRef.current?.focus()}
+                      left={<PaperTextInput.Icon icon="email" />}
+                      error={!!emailError}
+                      style={styles.paperInput}
+                      outlineStyle={styles.paperOutline}
+                      contentStyle={styles.paperInputContent}
+                      theme={{
+                        colors: {
+                          primary: emailError ? "#ef4444" : "#3b82f6",
+                          outline: emailError ? "#ef4444" : "#d1d5db",
+                          onSurfaceVariant: "#9ca3af",
+                        },
+                      }}
+                    />
+                  )}
                   {emailError ? (
                     <Text
                       color="red.500"
@@ -312,7 +392,7 @@ export default function LoginScreen() {
                   ) : null}
                 </Box>
 
-                {/* Contraseña con React Native Paper */}
+                {/* Input de Contraseña - Diferentes según plataforma */}
                 <Box>
                   <Text
                     color="white"
@@ -321,31 +401,45 @@ export default function LoginScreen() {
                   >
                     Contraseña
                   </Text>
-                  <PaperTextInput
-                    ref={passwordInputRef}
-                    mode="outlined"
-                    placeholder="••••••••"
-                    value={password}
-                    onChangeText={handlePasswordChange}
-                    onBlur={handlePasswordBlur}
-                    secureTextEntry
-                    autoComplete="current-password"
-                    textContentType="password"
-                    returnKeyType="done"
-                    onSubmitEditing={handleLogin}
-                    left={<PaperTextInput.Icon icon="lock" />}
-                    error={!!passwordError}
-                    style={styles.paperInput}
-                    outlineStyle={styles.paperOutline}
-                    contentStyle={styles.paperInputContent}
-                    theme={{
-                      colors: {
-                        primary: passwordError ? "#ef4444" : "#3b82f6",
-                        outline: passwordError ? "#ef4444" : "#d1d5db",
-                        onSurfaceVariant: "#9ca3af",
-                      },
-                    }}
-                  />
+                  {Platform.OS === "web" ? (
+                    <WebInput
+                      inputRef={passwordInputRef}
+                      placeholder="••••••••"
+                      value={password}
+                      onChangeText={handlePasswordChange}
+                      onBlur={handlePasswordBlur}
+                      type="password"
+                      error={passwordError}
+                      onSubmitEditing={handleLogin}
+                      icon="🔒"
+                    />
+                  ) : (
+                    <PaperTextInput
+                      ref={passwordInputRef}
+                      mode="outlined"
+                      placeholder="••••••••"
+                      value={password}
+                      onChangeText={handlePasswordChange}
+                      onBlur={handlePasswordBlur}
+                      secureTextEntry
+                      autoComplete="current-password"
+                      textContentType="password"
+                      returnKeyType="done"
+                      onSubmitEditing={handleLogin}
+                      left={<PaperTextInput.Icon icon="lock" />}
+                      error={!!passwordError}
+                      style={styles.paperInput}
+                      outlineStyle={styles.paperOutline}
+                      contentStyle={styles.paperInputContent}
+                      theme={{
+                        colors: {
+                          primary: passwordError ? "#ef4444" : "#3b82f6",
+                          outline: passwordError ? "#ef4444" : "#d1d5db",
+                          onSurfaceVariant: "#9ca3af",
+                        },
+                      }}
+                    />
+                  )}
                   {passwordError ? (
                     <Text
                       color="red.500"
@@ -405,7 +499,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   paperInputContent: {
-    paddingLeft: 8, // Espacio adicional a la izquierda del texto
+    paddingLeft: 8,
   },
   paperOutline: {
     borderRadius: 12,
