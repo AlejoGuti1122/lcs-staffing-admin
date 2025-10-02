@@ -610,7 +610,7 @@ export default function JobsListScreen() {
         </AlertDialog.Content>
       </AlertDialog>
 
-      {/* ✨ Modal de Edición - NUEVO */}Cancelar
+      {/* ✨ Modal de Edición - NUEVO */}
       <EditJobModal
         isOpen={isEditOpen}
         onClose={onEditClose}
