@@ -180,6 +180,16 @@ export default function JobsListScreen() {
 
   const JobCard = ({ item }: { item: Job }) => {
     const [imageError, setImageError] = useState(false)
+    const [imageLoaded, setImageLoaded] = useState(false)
+
+    useEffect(() => {
+      console.log(
+        `🎴 JobCard montado - ID: ${item.id}, tiene imagen: ${!!item.imageURL}`
+      )
+      if (item.imageURL) {
+        console.log(`📸 URL: ${item.imageURL}`)
+      }
+    }, [])
 
     return (
       <Box
@@ -193,7 +203,24 @@ export default function JobsListScreen() {
         }
       >
         {item.imageURL && !imageError && (
-          <Box mb={3}>
+          <Box
+            mb={3}
+            position="relative"
+          >
+            {!imageLoaded && (
+              <Box
+                position="absolute"
+                width="100%"
+                height={150}
+                bg="gray.700"
+                justifyContent="center"
+                alignItems="center"
+                borderRadius={8}
+                zIndex={1}
+              >
+                <Text color="gray.500">Cargando imagen...</Text>
+              </Box>
+            )}
             <Image
               source={{ uri: item.imageURL }}
               style={{
@@ -203,8 +230,16 @@ export default function JobsListScreen() {
               }}
               contentFit="cover"
               transition={300}
+              cachePolicy="none"
+              onLoad={() => {
+                console.log(`✅ Imagen cargada - ID: ${item.id}`)
+                setImageLoaded(true)
+              }}
               onError={(error) => {
-                console.error("Error cargando imagen:", error)
+                console.error(
+                  `❌ Error cargando imagen - ID: ${item.id}`,
+                  error
+                )
                 setImageError(true)
               }}
             />
