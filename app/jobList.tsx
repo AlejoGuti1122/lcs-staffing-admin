@@ -52,7 +52,7 @@ export default function JobsListScreen() {
   const [jobToEdit, setJobToEdit] = useState<Job | null>(null)
   const [isDeleting, setIsDeleting] = useState<boolean>(false)
 
-  // Disclosure para el modal de desactivación
+  
   const { isOpen, onOpen, onClose } = useDisclose()
   // Disclosure para el modal de edición
   const {
