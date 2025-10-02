@@ -22,7 +22,9 @@ import {
   VStack,
 } from "native-base"
 import React, { useEffect, useRef, useState } from "react"
-import { FlatList, Image, ListRenderItem } from "react-native"
+import { FlatList, ListRenderItem } from "react-native"
+
+import { Image } from "expo-image"
 
 import { db, storage } from "../config/firebase"
 
@@ -176,225 +178,233 @@ export default function JobsListScreen() {
     }
   }
 
-  const JobCard = ({ item }: { item: Job }) => (
-    <Box
-      bg="gray.800"
-      p={4}
-      mb={3}
-      borderRadius="lg"
-      borderLeftWidth={4}
-      borderLeftColor={item.status === "active" ? "primary.500" : "orange.500"}
-    >
-      {item.imageURL && (
-        <Box mb={3}>
-          <Image
-            source={{ uri: item.imageURL }}
-            style={{
-              width: "100%",
-              height: 150,
-              borderRadius: 8,
-            }}
-            resizeMode="cover"
-          />
-        </Box>
-      )}
+  const JobCard = ({ item }: { item: Job }) => {
+    const [imageError, setImageError] = useState(false)
 
-      <HStack
-        justifyContent="space-between"
-        alignItems="flex-start"
+    return (
+      <Box
+        bg="gray.800"
+        p={4}
         mb={3}
+        borderRadius="lg"
+        borderLeftWidth={4}
+        borderLeftColor={
+          item.status === "active" ? "primary.500" : "orange.500"
+        }
       >
-        <VStack
-          flex={1}
-          mr={2}
-        >
-          <Text
-            color="white"
-            fontSize="lg"
-            fontWeight="bold"
-            mb={1}
-          >
-            {item.title}
-          </Text>
-          <HStack
-            alignItems="center"
-            mb={1}
-          >
-            <Icon
-              as={MaterialIcons}
-              name="business"
-              color="gray.400"
-              size="sm"
+        {item.imageURL && !imageError && (
+          <Box mb={3}>
+            <Image
+              source={{ uri: item.imageURL }}
+              style={{
+                width: "100%",
+                height: 150,
+                borderRadius: 8,
+              }}
+              contentFit="cover"
+              transition={300}
+              onError={(error) => {
+                console.error("Error cargando imagen:", error)
+                setImageError(true)
+              }}
             />
+          </Box>
+        )}
+
+        <HStack
+          justifyContent="space-between"
+          alignItems="flex-start"
+          mb={3}
+        >
+          <VStack
+            flex={1}
+            mr={2}
+          >
             <Text
-              color="gray.300"
-              fontSize="md"
-              ml={1}
+              color="white"
+              fontSize="lg"
+              fontWeight="bold"
+              mb={1}
             >
-              {item.company}
+              {item.title}
             </Text>
-          </HStack>
-          {item.location && (
-            <HStack alignItems="center">
+            <HStack
+              alignItems="center"
+              mb={1}
+            >
               <Icon
                 as={MaterialIcons}
-                name="location-on"
+                name="business"
                 color="gray.400"
                 size="sm"
               />
               <Text
-                color="gray.400"
-                fontSize="sm"
+                color="gray.300"
+                fontSize="md"
                 ml={1}
               >
-                {item.location}
+                {item.company}
               </Text>
             </HStack>
-          )}
-        </VStack>
-        <Badge
-          colorScheme={item.status === "active" ? "green" : "red"}
-          variant="subtle"
-        >
-          {item.status === "active" ? "Activo" : "Desactivado"}
-        </Badge>
-      </HStack>
-
-      {item.salary && (
-        <HStack
-          alignItems="center"
-          mb={2}
-        >
-          <Icon
-            as={MaterialIcons}
-            name="attach-money"
-            color="primary.400"
-            size="sm"
-          />
-          <Text
-            color="primary.400"
-            fontSize="sm"
-            fontWeight="medium"
-            ml={1}
+            {item.location && (
+              <HStack alignItems="center">
+                <Icon
+                  as={MaterialIcons}
+                  name="location-on"
+                  color="gray.400"
+                  size="sm"
+                />
+                <Text
+                  color="gray.400"
+                  fontSize="sm"
+                  ml={1}
+                >
+                  {item.location}
+                </Text>
+              </HStack>
+            )}
+          </VStack>
+          <Badge
+            colorScheme={item.status === "active" ? "green" : "red"}
+            variant="subtle"
           >
-            {item.salary}
-          </Text>
+            {item.status === "active" ? "Activo" : "Desactivado"}
+          </Badge>
         </HStack>
-      )}
 
-      <Text
-        color="gray.300"
-        fontSize="sm"
-        mb={3}
-        numberOfLines={2}
-      >
-        {item.description}
-      </Text>
-
-      {item.requirements && item.requirements.length > 0 && (
-        <VStack mb={3}>
-          <Text
-            color="gray.400"
-            fontSize="xs"
-            mb={1}
+        {item.salary && (
+          <HStack
+            alignItems="center"
+            mb={2}
           >
-            Requisitos principales:
-          </Text>
-          <HStack flexWrap="wrap">
-            {item.requirements.slice(0, 3).map((req, index) => (
-              <Badge
-                key={index}
-                colorScheme="gray"
+            <Icon
+              as={MaterialIcons}
+              name="attach-money"
+              color="primary.400"
+              size="sm"
+            />
+            <Text
+              color="primary.400"
+              fontSize="sm"
+              fontWeight="medium"
+              ml={1}
+            >
+              {item.salary}
+            </Text>
+          </HStack>
+        )}
+
+        <Text
+          color="gray.300"
+          fontSize="sm"
+          mb={3}
+          numberOfLines={2}
+        >
+          {item.description}
+        </Text>
+
+        {item.requirements && item.requirements.length > 0 && (
+          <VStack mb={3}>
+            <Text
+              color="gray.400"
+              fontSize="xs"
+              mb={1}
+            >
+              Requisitos principales:
+            </Text>
+            <HStack flexWrap="wrap">
+              {item.requirements.slice(0, 3).map((req, index) => (
+                <Badge
+                  key={index}
+                  colorScheme="gray"
+                  variant="outline"
+                  mr={1}
+                  mb={1}
+                >
+                  <Text fontSize="xs">{req}</Text>
+                </Badge>
+              ))}
+              {item.requirements.length > 3 && (
+                <Badge
+                  colorScheme="gray"
+                  variant="outline"
+                  mr={1}
+                  mb={1}
+                >
+                  <Text fontSize="xs">+{item.requirements.length - 3} más</Text>
+                </Badge>
+              )}
+            </HStack>
+          </VStack>
+        )}
+
+        <Text
+          color="gray.500"
+          fontSize="xs"
+          mb={3}
+        >
+          Publicado: {formatDate(item.createdAt)}
+        </Text>
+
+        <Divider
+          bg="gray.700"
+          mb={3}
+        />
+
+        <HStack
+          justifyContent="space-between"
+          alignItems="center"
+        >
+          <HStack space={2}>
+            <EditJobButton
+              onPress={() => openEditModal(item)}
+              isDisabled={isDeleting}
+            />
+
+            {item.status === "active" ? (
+              <Button
                 variant="outline"
-                mr={1}
-                mb={1}
+                colorScheme="orange"
+                size="sm"
+                leftIcon={
+                  <Icon
+                    as={MaterialIcons}
+                    name="visibility-off"
+                    size="xs"
+                  />
+                }
+                onPress={() => openDeactivateDialog(item)}
+                _text={{ fontSize: "xs" }}
+                _pressed={{ opacity: 0.7 }}
+                isDisabled={isDeleting}
               >
-                <Text fontSize="xs">{req}</Text>
-              </Badge>
-            ))}
-            {item.requirements.length > 3 && (
-              <Badge
-                colorScheme="gray"
+                Desactivar
+              </Button>
+            ) : (
+              <Button
                 variant="outline"
-                mr={1}
-                mb={1}
+                colorScheme="green"
+                size="sm"
+                leftIcon={
+                  <Icon
+                    as={MaterialIcons}
+                    name="visibility"
+                    size="xs"
+                  />
+                }
+                onPress={() => handleReactivateJob(item)}
+                _text={{ fontSize: "xs" }}
+                _pressed={{ opacity: 0.7 }}
+                isDisabled={isDeleting}
               >
-                <Text fontSize="xs">+{item.requirements.length - 3} más</Text>
-              </Badge>
+                Reactivar
+              </Button>
             )}
           </HStack>
-        </VStack>
-      )}
-
-      <Text
-        color="gray.500"
-        fontSize="xs"
-        mb={3}
-      >
-        Publicado: {formatDate(item.createdAt)}
-      </Text>
-
-      <Divider
-        bg="gray.700"
-        mb={3}
-      />
-
-      {/* ✨ Sección de botones actualizada con el botón de editar */}
-      <HStack
-        justifyContent="space-between"
-        alignItems="center"
-      >
-        <HStack space={2}>
-          {/* Botón de Editar - NUEVO */}
-          <EditJobButton
-            onPress={() => openEditModal(item)}
-            isDisabled={isDeleting}
-          />
-
-          {/* Botón condicional: Desactivar o Reactivar */}
-          {item.status === "active" ? (
-            <Button
-              variant="outline"
-              colorScheme="orange"
-              size="sm"
-              leftIcon={
-                <Icon
-                  as={MaterialIcons}
-                  name="visibility-off"
-                  size="xs"
-                />
-              }
-              onPress={() => openDeactivateDialog(item)}
-              _text={{ fontSize: "xs" }}
-              _pressed={{ opacity: 0.7 }}
-              isDisabled={isDeleting}
-            >
-              Desactivar
-            </Button>
-          ) : (
-            <Button
-              variant="outline"
-              colorScheme="green"
-              size="sm"
-              leftIcon={
-                <Icon
-                  as={MaterialIcons}
-                  name="visibility"
-                  size="xs"
-                />
-              }
-              onPress={() => handleReactivateJob(item)}
-              _text={{ fontSize: "xs" }}
-              _pressed={{ opacity: 0.7 }}
-              isDisabled={isDeleting}
-            >
-              Reactivar
-            </Button>
-          )}
         </HStack>
-      </HStack>
-    </Box>
-  )
+      </Box>
+    )
+  }
 
   const renderItem: ListRenderItem<Job> = ({ item }) => <JobCard item={item} />
 
