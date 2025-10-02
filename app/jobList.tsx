@@ -73,9 +73,15 @@ export default function JobsListScreen() {
       (querySnapshot) => {
         const jobsData: Job[] = []
         querySnapshot.forEach((doc) => {
-          jobsData.push({ id: doc.id, ...doc.data() } as Job)
+          const data = doc.data()
+          console.log("📦 Job recibido:", doc.id, "imageURL:", data.imageURL) // Debug
+          jobsData.push({ id: doc.id, ...data } as Job)
         })
-        setJobs(jobsData)
+
+        console.log(`🔄 Total de empleos cargados: ${jobsData.length}`) // Debug
+
+        // Forzar actualización con un nuevo array
+        setJobs([...jobsData])
         setLoading(false)
       },
       (error) => {
@@ -586,9 +592,10 @@ export default function JobsListScreen() {
         <FlatList
           data={jobs}
           renderItem={renderItem}
-          keyExtractor={(item) => item.id}
+          keyExtractor={(item) => `${item.id}-${item.imageURL || "no-image"}`} // Cambio aquí
           contentContainerStyle={{ padding: 24, paddingBottom: 40 }}
           showsVerticalScrollIndicator={false}
+          extraData={jobs} // Agregar esto
         />
       )}
 
