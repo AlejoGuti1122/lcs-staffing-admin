@@ -211,6 +211,12 @@ export default function JobsListScreen() {
     const [imageError, setImageError] = useState(false)
     const [imageLoaded, setImageLoaded] = useState(false)
 
+     // Agregar timestamp a la URL para evitar caché
+  const imageUri = item.imageURL 
+    ? `${item.imageURL}${item.imageURL.includes('?') ? '&' : '?'}t=${Date.now()}`
+    : null;
+
+
     useEffect(() => {
       console.log(
         `🎴 JobCard montado - ID: ${item.id}, tiene imagen: ${!!item.imageURL}`
