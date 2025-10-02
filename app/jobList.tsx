@@ -22,7 +22,7 @@ import {
   VStack,
 } from "native-base"
 import React, { useEffect, useRef, useState } from "react"
-import { FlatList, ListRenderItem, Platform } from "react-native"
+import { FlatList, ListRenderItem } from "react-native"
 
 import { Image } from "expo-image"
 
@@ -72,40 +72,18 @@ export default function JobsListScreen() {
       q,
       async (querySnapshot) => {
         const jobsData: Job[] = []
-        const imagePromises: Promise<void>[] = []
 
         querySnapshot.forEach((doc) => {
           const data = doc.data()
-          const job = { id: doc.id, ...data } as Job
-          jobsData.push(job)
-
-          // Pre-cargar imagen en el navegador
-          if (job.imageURL && Platform.OS === "web") {
-            const promise = new Promise<void>((resolve) => {
-              const img = new window.Image()
-              img.onload = () => {
-                console.log(`✅ Imagen pre-cargada: ${job.id}`)
-                resolve()
-              }
-              img.onerror = () => {
-                console.log(`❌ Error pre-cargando: ${job.id}`)
-                resolve() // Resolver igual para no bloquear
-              }
-              img.src = job.imageURL!
-            })
-            imagePromises.push(promise)
-          }
+          jobsData.push({ id: doc.id, ...data } as Job)
         })
 
-        // Esperar a que todas las imágenes intenten cargar
-        if (Platform.OS === "web" && imagePromises.length > 0) {
-          console.log(`⏳ Esperando ${imagePromises.length} imágenes...`)
-          await Promise.all(imagePromises)
-          console.log(`✅ Todas las imágenes procesadas`)
-        }
-
-        setJobs(jobsData)
-        setLoading(false)
+        // NO actualizar el estado inmediatamente
+        // Esperar un tick para que React procese todo
+        setTimeout(() => {
+          setJobs(jobsData)
+          setLoading(false)
+        }, 100)
       },
       (error) => {
         console.error("Error obteniendo empleos:", error)
@@ -207,311 +185,224 @@ export default function JobsListScreen() {
     }
   }
 
-  const JobCard = ({ item }: { item: Job }) => {
-    const [imageError, setImageError] = useState(false)
-    const [imageLoaded, setImageLoaded] = useState(false)
+  const JobCard = ({ item }: { item: Job }) => (
+    <Box
+      bg="gray.800"
+      p={4}
+      mb={3}
+      borderRadius="lg"
+      borderLeftWidth={4}
+      borderLeftColor={item.status === "active" ? "primary.500" : "orange.500"}
+    >
+      {item.imageURL && (
+        <Box mb={3}>
+          <Image
+            source={{ uri: item.imageURL }}
+            style={{
+              width: "100%",
+              height: 150,
+              borderRadius: 8,
+            }}
+            contentFit="cover"
+            cachePolicy="memory-disk"
+            priority="high"
+          />
+        </Box>
+      )}
 
-     // Agregar timestamp a la URL para evitar caché
-  const imageUri = item.imageURL 
-    ? `${item.imageURL}${item.imageURL.includes('?') ? '&' : '?'}t=${Date.now()}`
-    : null;
-
-
-    useEffect(() => {
-      console.log(
-        `🎴 JobCard montado - ID: ${item.id}, tiene imagen: ${!!item.imageURL}`
-      )
-      if (item.imageURL) {
-        console.log(`📸 URL: ${item.imageURL}`)
-      }
-    }, [])
-
-    console.log(
-      `🔥 RENDER JOBCARD - ID: ${
-        item.id
-      }, URL exists: ${!!item.imageURL}, URL: ${item.imageURL?.substring(
-        0,
-        50
-      )}...`
-    )
-
-    return (
-      <Box
-        bg="gray.800"
-        p={4}
+      <HStack
+        justifyContent="space-between"
+        alignItems="flex-start"
         mb={3}
-        borderRadius="lg"
-        borderLeftWidth={4}
-        borderLeftColor={
-          item.status === "active" ? "primary.500" : "orange.500"
-        }
       >
-        {item.imageURL && !imageError && (
-          <Box
-            mb={3}
-            position="relative"
-          >
-            {!imageLoaded && (
-              <Box
-                position="absolute"
-                width="100%"
-                height={150}
-                bg="gray.700"
-                justifyContent="center"
-                alignItems="center"
-                borderRadius={8}
-                zIndex={1}
-              >
-                <Text color="gray.500">Cargando imagen...</Text>
-              </Box>
-            )}
-
-            {Platform.OS === "web" ? (
-              <img
-                src={item.imageURL}
-                alt={item.title}
-                style={{
-                  width: "100%",
-                  height: 150,
-                  borderRadius: 8,
-                  objectFit: "cover",
-                  display: imageLoaded ? "block" : "none",
-                }}
-                onLoad={() => {
-                  console.log(`✅ Imagen cargada - ID: ${item.id}`)
-                  setImageLoaded(true)
-                }}
-                onError={(error) => {
-                  console.error(
-                    `❌ Error cargando imagen - ID: ${item.id}`,
-                    error
-                  )
-                  setImageError(true)
-                }}
-              />
-            ) : (
-              <Image
-                key={`${item.id}-${item.imageURL}`} // Forzar re-render cuando cambie la URL
-                source={{ uri: item.imageURL }}
-                style={{
-                  width: "100%",
-                  height: 150,
-                  borderRadius: 8,
-                }}
-                contentFit="cover"
-                cachePolicy="none" // NO usar caché
-                transition={300}
-                onLoad={() => {
-                  console.log(`✅ Imagen cargada móvil - ID: ${item.id}`)
-                  setImageLoaded(true)
-                }}
-                onError={(error) => {
-                  console.error(
-                    `❌ Error cargando imagen móvil - ID: ${item.id}`,
-                    error
-                  )
-                  setImageError(true)
-                }}
-              />
-            )}
-          </Box>
-        )}
-
-        {/* Resto del código igual... */}
-        <HStack
-          justifyContent="space-between"
-          alignItems="flex-start"
-          mb={3}
+        <VStack
+          flex={1}
+          mr={2}
         >
-          <VStack
-            flex={1}
-            mr={2}
+          <Text
+            color="white"
+            fontSize="lg"
+            fontWeight="bold"
+            mb={1}
           >
+            {item.title}
+          </Text>
+          <HStack
+            alignItems="center"
+            mb={1}
+          >
+            <Icon
+              as={MaterialIcons}
+              name="business"
+              color="gray.400"
+              size="sm"
+            />
             <Text
-              color="white"
-              fontSize="lg"
-              fontWeight="bold"
-              mb={1}
+              color="gray.300"
+              fontSize="md"
+              ml={1}
             >
-              {item.title}
+              {item.company}
             </Text>
-            <HStack
-              alignItems="center"
-              mb={1}
-            >
+          </HStack>
+          {item.location && (
+            <HStack alignItems="center">
               <Icon
                 as={MaterialIcons}
-                name="business"
+                name="location-on"
                 color="gray.400"
                 size="sm"
               />
               <Text
-                color="gray.300"
-                fontSize="md"
+                color="gray.400"
+                fontSize="sm"
                 ml={1}
               >
-                {item.company}
+                {item.location}
               </Text>
             </HStack>
-            {item.location && (
-              <HStack alignItems="center">
+          )}
+        </VStack>
+        <Badge
+          colorScheme={item.status === "active" ? "green" : "red"}
+          variant="subtle"
+        >
+          {item.status === "active" ? "Activo" : "Desactivado"}
+        </Badge>
+      </HStack>
+
+      {item.salary && (
+        <HStack
+          alignItems="center"
+          mb={2}
+        >
+          <Icon
+            as={MaterialIcons}
+            name="attach-money"
+            color="primary.400"
+            size="sm"
+          />
+          <Text
+            color="primary.400"
+            fontSize="sm"
+            fontWeight="medium"
+            ml={1}
+          >
+            {item.salary}
+          </Text>
+        </HStack>
+      )}
+
+      <Text
+        color="gray.300"
+        fontSize="sm"
+        mb={3}
+        numberOfLines={2}
+      >
+        {item.description}
+      </Text>
+
+      {item.requirements && item.requirements.length > 0 && (
+        <VStack mb={3}>
+          <Text
+            color="gray.400"
+            fontSize="xs"
+            mb={1}
+          >
+            Requisitos principales:
+          </Text>
+          <HStack flexWrap="wrap">
+            {item.requirements.slice(0, 3).map((req, index) => (
+              <Badge
+                key={index}
+                colorScheme="gray"
+                variant="outline"
+                mr={1}
+                mb={1}
+              >
+                <Text fontSize="xs">{req}</Text>
+              </Badge>
+            ))}
+            {item.requirements.length > 3 && (
+              <Badge
+                colorScheme="gray"
+                variant="outline"
+                mr={1}
+                mb={1}
+              >
+                <Text fontSize="xs">+{item.requirements.length - 3} más</Text>
+              </Badge>
+            )}
+          </HStack>
+        </VStack>
+      )}
+
+      <Text
+        color="gray.500"
+        fontSize="xs"
+        mb={3}
+      >
+        Publicado: {formatDate(item.createdAt)}
+      </Text>
+
+      <Divider
+        bg="gray.700"
+        mb={3}
+      />
+
+      <HStack
+        justifyContent="space-between"
+        alignItems="center"
+      >
+        <HStack space={2}>
+          <EditJobButton
+            onPress={() => openEditModal(item)}
+            isDisabled={isDeleting}
+          />
+
+          {item.status === "active" ? (
+            <Button
+              variant="outline"
+              colorScheme="orange"
+              size="sm"
+              leftIcon={
                 <Icon
                   as={MaterialIcons}
-                  name="location-on"
-                  color="gray.400"
-                  size="sm"
+                  name="visibility-off"
+                  size="xs"
                 />
-                <Text
-                  color="gray.400"
-                  fontSize="sm"
-                  ml={1}
-                >
-                  {item.location}
-                </Text>
-              </HStack>
-            )}
-          </VStack>
-          <Badge
-            colorScheme={item.status === "active" ? "green" : "red"}
-            variant="subtle"
-          >
-            {item.status === "active" ? "Activo" : "Desactivado"}
-          </Badge>
-        </HStack>
-
-        {item.salary && (
-          <HStack
-            alignItems="center"
-            mb={2}
-          >
-            <Icon
-              as={MaterialIcons}
-              name="attach-money"
-              color="primary.400"
-              size="sm"
-            />
-            <Text
-              color="primary.400"
-              fontSize="sm"
-              fontWeight="medium"
-              ml={1}
-            >
-              {item.salary}
-            </Text>
-          </HStack>
-        )}
-
-        <Text
-          color="gray.300"
-          fontSize="sm"
-          mb={3}
-          numberOfLines={2}
-        >
-          {item.description}
-        </Text>
-
-        {item.requirements && item.requirements.length > 0 && (
-          <VStack mb={3}>
-            <Text
-              color="gray.400"
-              fontSize="xs"
-              mb={1}
-            >
-              Requisitos principales:
-            </Text>
-            <HStack flexWrap="wrap">
-              {item.requirements.slice(0, 3).map((req, index) => (
-                <Badge
-                  key={index}
-                  colorScheme="gray"
-                  variant="outline"
-                  mr={1}
-                  mb={1}
-                >
-                  <Text fontSize="xs">{req}</Text>
-                </Badge>
-              ))}
-              {item.requirements.length > 3 && (
-                <Badge
-                  colorScheme="gray"
-                  variant="outline"
-                  mr={1}
-                  mb={1}
-                >
-                  <Text fontSize="xs">+{item.requirements.length - 3} más</Text>
-                </Badge>
-              )}
-            </HStack>
-          </VStack>
-        )}
-
-        <Text
-          color="gray.500"
-          fontSize="xs"
-          mb={3}
-        >
-          Publicado: {formatDate(item.createdAt)}
-        </Text>
-
-        <Divider
-          bg="gray.700"
-          mb={3}
-        />
-
-        <HStack
-          justifyContent="space-between"
-          alignItems="center"
-        >
-          <HStack space={2}>
-            <EditJobButton
-              onPress={() => openEditModal(item)}
+              }
+              onPress={() => openDeactivateDialog(item)}
+              _text={{ fontSize: "xs" }}
+              _pressed={{ opacity: 0.7 }}
               isDisabled={isDeleting}
-            />
-
-            {item.status === "active" ? (
-              <Button
-                variant="outline"
-                colorScheme="orange"
-                size="sm"
-                leftIcon={
-                  <Icon
-                    as={MaterialIcons}
-                    name="visibility-off"
-                    size="xs"
-                  />
-                }
-                onPress={() => openDeactivateDialog(item)}
-                _text={{ fontSize: "xs" }}
-                _pressed={{ opacity: 0.7 }}
-                isDisabled={isDeleting}
-              >
-                Desactivar
-              </Button>
-            ) : (
-              <Button
-                variant="outline"
-                colorScheme="green"
-                size="sm"
-                leftIcon={
-                  <Icon
-                    as={MaterialIcons}
-                    name="visibility"
-                    size="xs"
-                  />
-                }
-                onPress={() => handleReactivateJob(item)}
-                _text={{ fontSize: "xs" }}
-                _pressed={{ opacity: 0.7 }}
-                isDisabled={isDeleting}
-              >
-                Reactivar
-              </Button>
-            )}
-          </HStack>
+            >
+              Desactivar
+            </Button>
+          ) : (
+            <Button
+              variant="outline"
+              colorScheme="green"
+              size="sm"
+              leftIcon={
+                <Icon
+                  as={MaterialIcons}
+                  name="visibility"
+                  size="xs"
+                />
+              }
+              onPress={() => handleReactivateJob(item)}
+              _text={{ fontSize: "xs" }}
+              _pressed={{ opacity: 0.7 }}
+              isDisabled={isDeleting}
+            >
+              Reactivar
+            </Button>
+          )}
         </HStack>
-      </Box>
-    )
-  }
+      </HStack>
+    </Box>
+  )
 
   const renderItem: ListRenderItem<Job> = ({ item }) => <JobCard item={item} />
 
