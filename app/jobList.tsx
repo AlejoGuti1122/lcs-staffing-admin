@@ -22,7 +22,7 @@ import {
   VStack,
 } from "native-base"
 import React, { useEffect, useRef, useState } from "react"
-import { FlatList, ListRenderItem } from "react-native"
+import { FlatList, ListRenderItem, Platform } from "react-native"
 
 import { Image } from "expo-image"
 
@@ -227,31 +227,59 @@ export default function JobsListScreen() {
                 <Text color="gray.500">Cargando imagen...</Text>
               </Box>
             )}
-            <Image
-              source={{ uri: item.imageURL }}
-              style={{
-                width: "100%",
-                height: 150,
-                borderRadius: 8,
-              }}
-              contentFit="cover"
-              transition={300}
-              cachePolicy="none"
-              onLoad={() => {
-                console.log(`✅ Imagen cargada - ID: ${item.id}`)
-                setImageLoaded(true)
-              }}
-              onError={(error) => {
-                console.error(
-                  `❌ Error cargando imagen - ID: ${item.id}`,
-                  error
-                )
-                setImageError(true)
-              }}
-            />
+
+            {Platform.OS === "web" ? (
+              // Usar img nativo en web
+              <img
+                src={item.imageURL}
+                alt={item.title}
+                style={{
+                  width: "100%",
+                  height: 150,
+                  borderRadius: 8,
+                  objectFit: "cover",
+                  display: imageLoaded ? "block" : "none",
+                }}
+                onLoad={() => {
+                  console.log(`✅ Imagen cargada - ID: ${item.id}`)
+                  setImageLoaded(true)
+                }}
+                onError={(error) => {
+                  console.error(
+                    `❌ Error cargando imagen - ID: ${item.id}`,
+                    error
+                  )
+                  setImageError(true)
+                }}
+              />
+            ) : (
+              // Usar expo-image en móvil
+              <Image
+                source={{ uri: item.imageURL }}
+                style={{
+                  width: "100%",
+                  height: 150,
+                  borderRadius: 8,
+                }}
+                contentFit="cover"
+                transition={300}
+                onLoad={() => {
+                  console.log(`✅ Imagen cargada - ID: ${item.id}`)
+                  setImageLoaded(true)
+                }}
+                onError={(error) => {
+                  console.error(
+                    `❌ Error cargando imagen - ID: ${item.id}`,
+                    error
+                  )
+                  setImageError(true)
+                }}
+              />
+            )}
           </Box>
         )}
 
+        {/* Resto del código igual... */}
         <HStack
           justifyContent="space-between"
           alignItems="flex-start"
