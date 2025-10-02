@@ -221,9 +221,12 @@ export default function JobsListScreen() {
     }, [])
 
     console.log(
-      `🔍 Render - ID: ${
+      `🔥 RENDER JOBCARD - ID: ${
         item.id
-      }, imageLoaded: ${imageLoaded}, imageError: ${imageError}, hasURL: ${!!item.imageURL}`
+      }, URL exists: ${!!item.imageURL}, URL: ${item.imageURL?.substring(
+        0,
+        50
+      )}...`
     )
 
     return (
@@ -505,6 +508,16 @@ export default function JobsListScreen() {
   }
 
   const renderItem: ListRenderItem<Job> = ({ item }) => <JobCard item={item} />
+
+  console.log("🔥 RENDER PRINCIPAL - Jobs count:", jobs.length)
+  console.log(
+    "🔥 Jobs data:",
+    JSON.stringify(
+      jobs.map((j) => ({ id: j.id, hasImage: !!j.imageURL })),
+      null,
+      2
+    )
+  )
 
   return (
     <Box
