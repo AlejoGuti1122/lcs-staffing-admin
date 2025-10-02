@@ -261,7 +261,6 @@ export default function JobsListScreen() {
             )}
 
             {Platform.OS === "web" ? (
-              // Usar img nativo en web
               <img
                 src={item.imageURL}
                 alt={item.title}
@@ -285,8 +284,8 @@ export default function JobsListScreen() {
                 }}
               />
             ) : (
-              // Usar expo-image en móvil
               <Image
+                key={`${item.id}-${item.imageURL}`} // Forzar re-render cuando cambie la URL
                 source={{ uri: item.imageURL }}
                 style={{
                   width: "100%",
@@ -294,14 +293,15 @@ export default function JobsListScreen() {
                   borderRadius: 8,
                 }}
                 contentFit="cover"
+                cachePolicy="none" // NO usar caché
                 transition={300}
                 onLoad={() => {
-                  console.log(`✅ Imagen cargada - ID: ${item.id}`)
+                  console.log(`✅ Imagen cargada móvil - ID: ${item.id}`)
                   setImageLoaded(true)
                 }}
                 onError={(error) => {
                   console.error(
-                    `❌ Error cargando imagen - ID: ${item.id}`,
+                    `❌ Error cargando imagen móvil - ID: ${item.id}`,
                     error
                   )
                   setImageError(true)
