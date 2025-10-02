@@ -70,18 +70,41 @@ export default function JobsListScreen() {
 
     const unsubscribe = onSnapshot(
       q,
-      (querySnapshot) => {
+      async (querySnapshot) => {
         const jobsData: Job[] = []
+        const imagePromises: Promise<void>[] = []
+
         querySnapshot.forEach((doc) => {
           const data = doc.data()
-          console.log("📦 Job recibido:", doc.id, "imageURL:", data.imageURL) // Debug
-          jobsData.push({ id: doc.id, ...data } as Job)
+          const job = { id: doc.id, ...data } as Job
+          jobsData.push(job)
+
+          // Pre-cargar imagen en el navegador
+          if (job.imageURL && Platform.OS === "web") {
+            const promise = new Promise<void>((resolve) => {
+              const img = new window.Image()
+              img.onload = () => {
+                console.log(`✅ Imagen pre-cargada: ${job.id}`)
+                resolve()
+              }
+              img.onerror = () => {
+                console.log(`❌ Error pre-cargando: ${job.id}`)
+                resolve() // Resolver igual para no bloquear
+              }
+              img.src = job.imageURL!
+            })
+            imagePromises.push(promise)
+          }
         })
 
-        console.log(`🔄 Total de empleos cargados: ${jobsData.length}`) // Debug
+        // Esperar a que todas las imágenes intenten cargar
+        if (Platform.OS === "web" && imagePromises.length > 0) {
+          console.log(`⏳ Esperando ${imagePromises.length} imágenes...`)
+          await Promise.all(imagePromises)
+          console.log(`✅ Todas las imágenes procesadas`)
+        }
 
-        // Forzar actualización con un nuevo array
-        setJobs([...jobsData])
+        setJobs(jobsData)
         setLoading(false)
       },
       (error) => {
