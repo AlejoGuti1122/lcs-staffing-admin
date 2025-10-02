@@ -155,8 +155,10 @@ export const EditJobModal: React.FC<EditJobModalProps> = ({
 
   const showImageOptions = () => {
     if (Platform.OS === "web") {
+      // En web (desktop y móvil), usar input file
       pickImageWeb()
     } else {
+      // Solo en app nativa mostrar opciones de galería/cámara
       Alert.alert(
         "Cambiar Imagen",
         "Selecciona una opción",
@@ -331,7 +333,7 @@ export const EditJobModal: React.FC<EditJobModalProps> = ({
         maxWidth="500px"
         width="95%"
         height="80%"
-        marginTop={70}
+        marginTop={40}
         marginBottom="auto"
         marginX="auto"
       >
@@ -623,19 +625,24 @@ export const EditJobModal: React.FC<EditJobModalProps> = ({
                 </Text>
               </FormControl.Label>
               <TextArea
-                              value={formData.description}
-                              onChangeText={(text) => setFormData({ ...formData, description: text })}
-                              placeholder="Describe las responsabilidades y beneficios del puesto..."
-                              bg="gray.800"
-                              color="white"
-                              borderColor="gray.700"
-                              _focus={{
-                                  bg: "gray.800",
-                                  borderColor: "blue.500",
-                              }}
-                              placeholderTextColor="gray.500"
-                              h={20}
-                              autoCompleteType={undefined} tvParallaxProperties={undefined} onTextInput={undefined}              />
+                value={formData.description}
+                onChangeText={(text) =>
+                  setFormData({ ...formData, description: text })
+                }
+                placeholder="Describe las responsabilidades y beneficios del puesto..."
+                bg="gray.800"
+                color="white"
+                borderColor="gray.700"
+                _focus={{
+                  bg: "gray.800",
+                  borderColor: "blue.500",
+                }}
+                placeholderTextColor="gray.500"
+                h={20}
+                autoCompleteType={undefined}
+                tvParallaxProperties={undefined}
+                onTextInput={undefined}
+              />
               {"description" in errors && (
                 <FormControl.ErrorMessage
                   leftIcon={
