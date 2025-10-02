@@ -197,6 +197,12 @@ export default function JobsListScreen() {
       }
     }, [])
 
+    console.log(
+      `🔍 Render - ID: ${
+        item.id
+      }, imageLoaded: ${imageLoaded}, imageError: ${imageError}, hasURL: ${!!item.imageURL}`
+    )
+
     return (
       <Box
         bg="gray.800"
