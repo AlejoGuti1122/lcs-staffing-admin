@@ -294,13 +294,14 @@ export default function CreateJobScreen() {
     try {
       let imageURL = null
 
-      // Intentar subir imagen solo si existe y si estamos en móvil
-      // En web, saltar la imagen por ahora debido a problemas de CORS
-      if (formData.imageUri && Platform.OS !== "web") {
+      // Intentar subir imagen si existe
+      if (formData.imageUri) {
+        console.log("📸 Intentando subir imagen...")
         try {
           imageURL = await uploadImage(formData.imageUri)
+          console.log("✅ Imagen subida exitosamente:", imageURL)
         } catch (imageError) {
-          console.error("Error subiendo imagen:", imageError)
+          console.error("❌ Error subiendo imagen:", imageError)
           elegantToast.error({
             title: "Error con la imagen",
             description:
@@ -323,7 +324,11 @@ export default function CreateJobScreen() {
         status: "active",
       }
 
-      await addDoc(collection(db, "jobs"), jobData)
+      console.log("📝 Datos del empleo a guardar:", jobData)
+
+      const docRef = await addDoc(collection(db, "jobs"), jobData)
+
+      console.log("✅ Empleo creado con ID:", docRef.id)
 
       elegantToast.success({
         title: "¡Éxito!",
@@ -333,7 +338,7 @@ export default function CreateJobScreen() {
 
       router.back()
     } catch (error) {
-      console.error("Error creando empleo:", error)
+      console.error("❌ Error creando empleo:", error)
       elegantToast.error({
         title: "Error",
         description: "No se pudo crear el empleo. Intenta nuevamente.",

@@ -7,7 +7,7 @@ import {
   onSnapshot,
   orderBy,
   query,
-  updateDoc, // ✅ Cambié deleteDoc por updateDoc
+  updateDoc,
 } from "firebase/firestore"
 import {
   AlertDialog,
@@ -22,8 +22,13 @@ import {
   VStack,
 } from "native-base"
 import React, { useEffect, useRef, useState } from "react"
-import { FlatList, ListRenderItem } from "react-native"
-import { db } from "../config/firebase"
+import { FlatList, Image, ListRenderItem } from "react-native"
+
+import { db, storage } from "../config/firebase"
+
+import { EditJobButton } from "./components/EditButton"
+
+import { EditJobModal } from "./components/ModalEdit"
 import { useElegantToast } from "./hooks/useElegantToast"
 
 interface Job {
@@ -37,18 +42,28 @@ interface Job {
   createdAt: any
   createdBy: string
   status: string
+  imageURL?: string
 }
 
 export default function JobsListScreen() {
   const [jobs, setJobs] = useState<Job[]>([])
   const [loading, setLoading] = useState<boolean>(true)
   const [selectedJob, setSelectedJob] = useState<Job | null>(null)
+  const [jobToEdit, setJobToEdit] = useState<Job | null>(null)
   const [isDeleting, setIsDeleting] = useState<boolean>(false)
+
+  // Disclosure para el modal de desactivación
   const { isOpen, onOpen, onClose } = useDisclose()
+  // Disclosure para el modal de edición
+  const {
+    isOpen: isEditOpen,
+    onOpen: onEditOpen,
+    onClose: onEditClose,
+  } = useDisclose()
+
   const cancelRef = useRef<any>(null)
   const elegantToast = useElegantToast()
 
-  // ✅ FIX: Remover elegantToast de las dependencias para evitar loop infinito
   useEffect(() => {
     const q = query(collection(db, "jobs"), orderBy("createdAt", "desc"))
 
@@ -76,20 +91,17 @@ export default function JobsListScreen() {
     return () => unsubscribe()
   }, [])
 
-  // ✅ Función de desactivación actualizada
   const handleDeactivateJob = async (): Promise<void> => {
     if (!selectedJob || isDeleting) return
 
     setIsDeleting(true)
 
     try {
-      // ✅ Cambiar status a 'inactive' en lugar de eliminar
       await updateDoc(doc(db, "jobs", selectedJob.id), {
         status: "inactive",
         deactivatedAt: new Date(),
       })
 
-      // ✅ Toast de éxito actualizado
       elegantToast.success({
         title: "¡Éxito!",
         description: "Empleo desactivado correctamente",
@@ -101,7 +113,6 @@ export default function JobsListScreen() {
     } catch (error) {
       console.error("Error desactivando empleo:", error)
 
-      // ✅ Toast de error actualizado
       elegantToast.error({
         title: "Error",
         description: "No se pudo desactivar el empleo",
@@ -112,7 +123,6 @@ export default function JobsListScreen() {
     }
   }
 
-  // ✅ Función para reactivar empleo (funcionalidad extra)
   const handleReactivateJob = async (job: Job): Promise<void> => {
     try {
       setIsDeleting(true)
@@ -138,11 +148,17 @@ export default function JobsListScreen() {
     }
   }
 
-  // ✅ Función para abrir modal actualizada
   const openDeactivateDialog = (job: Job): void => {
     if (isDeleting) return
     setSelectedJob(job)
     onOpen()
+  }
+
+  // ✨ Nueva función para abrir el modal de edición
+  const openEditModal = (job: Job): void => {
+    if (isDeleting) return
+    setJobToEdit(job)
+    onEditOpen()
   }
 
   const formatDate = (timestamp: any): string => {
@@ -170,7 +186,20 @@ export default function JobsListScreen() {
       borderLeftWidth={4}
       borderLeftColor={item.status === "active" ? "primary.500" : "orange.500"}
     >
-      {/* Header del empleo */}
+      {item.imageURL && (
+        <Box mb={3}>
+          <Image
+            source={{ uri: item.imageURL }}
+            style={{
+              width: "100%",
+              height: 150,
+              borderRadius: 8,
+            }}
+            resizeMode="cover"
+          />
+        </Box>
+      )}
+
       <HStack
         justifyContent="space-between"
         alignItems="flex-start"
@@ -224,7 +253,6 @@ export default function JobsListScreen() {
             </HStack>
           )}
         </VStack>
-        {/* ✅ Badge actualizado con colores apropiados */}
         <Badge
           colorScheme={item.status === "active" ? "green" : "red"}
           variant="subtle"
@@ -233,7 +261,6 @@ export default function JobsListScreen() {
         </Badge>
       </HStack>
 
-      {/* Salario si existe */}
       {item.salary && (
         <HStack
           alignItems="center"
@@ -256,7 +283,6 @@ export default function JobsListScreen() {
         </HStack>
       )}
 
-      {/* Descripción truncada */}
       <Text
         color="gray.300"
         fontSize="sm"
@@ -266,7 +292,6 @@ export default function JobsListScreen() {
         {item.description}
       </Text>
 
-      {/* Requisitos si existen */}
       {item.requirements && item.requirements.length > 0 && (
         <VStack mb={3}>
           <Text
@@ -302,7 +327,6 @@ export default function JobsListScreen() {
         </VStack>
       )}
 
-      {/* Fecha de creación */}
       <Text
         color="gray.500"
         fontSize="xs"
@@ -316,13 +340,19 @@ export default function JobsListScreen() {
         mb={3}
       />
 
-      {/* ✅ Botones de acción actualizados */}
+      {/* ✨ Sección de botones actualizada con el botón de editar */}
       <HStack
         justifyContent="space-between"
         alignItems="center"
       >
         <HStack space={2}>
-          {/* ✅ Botón condicional: Desactivar o Reactivar */}
+          {/* Botón de Editar - NUEVO */}
+          <EditJobButton
+            onPress={() => openEditModal(item)}
+            isDisabled={isDeleting}
+          />
+
+          {/* Botón condicional: Desactivar o Reactivar */}
           {item.status === "active" ? (
             <Button
               variant="outline"
@@ -377,7 +407,6 @@ export default function JobsListScreen() {
     >
       <StatusBar style="light" />
 
-      {/* Header */}
       <HStack
         justifyContent="space-between"
         alignItems="center"
@@ -436,7 +465,6 @@ export default function JobsListScreen() {
         </Button>
       </HStack>
 
-      {/* Lista de empleos */}
       {loading ? (
         <Box
           flex={1}
@@ -520,7 +548,7 @@ export default function JobsListScreen() {
         />
       )}
 
-      {/* ✅ Modal actualizado para desactivar */}
+      {/* Modal de Desactivación */}
       <AlertDialog
         leastDestructiveRef={cancelRef}
         isOpen={isOpen}
@@ -564,7 +592,6 @@ export default function JobsListScreen() {
               >
                 Cancelar
               </Button>
-              {/* ✅ Botón que ejecuta desactivación */}
               <Button
                 bg="orange.600"
                 _pressed={{ bg: "orange.700" }}
@@ -582,6 +609,29 @@ export default function JobsListScreen() {
           </AlertDialog.Footer>
         </AlertDialog.Content>
       </AlertDialog>
+
+      {/* ✨ Modal de Edición - NUEVO */}Cancelar
+      <EditJobModal
+        isOpen={isEditOpen}
+        onClose={onEditClose}
+        job={jobToEdit}
+        db={db}
+        onSuccess={(title: string, description: string) => {
+          elegantToast.success({
+            title,
+            description,
+            duration: 3000,
+          })
+        }}
+        onError={(title: string, description: string) => {
+          elegantToast.error({
+            title,
+            description,
+            duration: 3000,
+          })
+        }}
+        storage={storage}
+      />
     </Box>
   )
 }
