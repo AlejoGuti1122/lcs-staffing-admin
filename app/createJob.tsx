@@ -40,7 +40,12 @@ interface FormErrors {
   title?: string
   description?: string
   company?: string
+  address?: string
 }
+
+// ============= CONSTANTE DE API KEY =============
+// Reemplaza con tu Google API Key
+const GOOGLE_MAPS_API_KEY = "AIzaSyC53W1HjEqO4UoUUxwqrjELEJZo9FJfvV0"
 
 export default function CreateJobScreen() {
   const [formData, setFormData] = useState<FormData>({
@@ -53,6 +58,7 @@ export default function CreateJobScreen() {
   const [errors, setErrors] = useState<FormErrors>({})
   const [isLoading, setIsLoading] = useState<boolean>(false)
   const [imageUploading, setImageUploading] = useState<boolean>(false)
+  const [isGeocodingAddress, setIsGeocodingAddress] = useState<boolean>(false)
 
   // Account Manager (usuario logueado)
   const [accountManager, setAccountManager] = useState<string>("")
@@ -75,6 +81,35 @@ export default function CreateJobScreen() {
       setAccountManager(user.displayName || user.email || "Admin")
     }
   }, [])
+
+  // ============= FUNCIÓN PARA OBTENER COORDENADAS DE UNA DIRECCIÓN =============
+  const getCoordinatesFromAddress = async (
+    address: string
+  ): Promise<{ latitude: number; longitude: number } | null> => {
+    if (!address.trim()) return null
+
+    try {
+      const encodedAddress = encodeURIComponent(address)
+      const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodedAddress}&key=${GOOGLE_MAPS_API_KEY}`
+
+      const response = await fetch(url)
+      const data = await response.json()
+
+      if (data.status === "OK" && data.results.length > 0) {
+        const location = data.results[0].geometry.location
+        return {
+          latitude: location.lat,
+          longitude: location.lng,
+        }
+      } else {
+        console.error("Geocoding error:", data.status)
+        return null
+      }
+    } catch (error) {
+      console.error("Error obteniendo coordenadas:", error)
+      return null
+    }
+  }
 
   // Función para agregar responsabilidad
   const addResponsibility = () => {
@@ -102,7 +137,6 @@ export default function CreateJobScreen() {
   const handleFileChangeWeb = (event: any) => {
     const file = event.target.files?.[0]
     if (file) {
-      // Validar que sea una imagen
       if (!file.type.startsWith("image/")) {
         elegantToast.error({
           title: "Archivo inválido",
@@ -111,8 +145,6 @@ export default function CreateJobScreen() {
         })
         return
       }
-
-      // Crear URL local para preview
       const imageUrl = URL.createObjectURL(file)
       setFormData({ ...formData, imageUri: imageUrl })
     }
@@ -133,13 +165,10 @@ export default function CreateJobScreen() {
   }
 
   const pickImageMobile = async () => {
-    console.log("pickImageMobile function called!")
     try {
       const hasPermission = await requestPermissions()
-      console.log("Permission result:", hasPermission)
       if (!hasPermission) return
 
-      console.log("Launching image picker...")
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
@@ -147,9 +176,7 @@ export default function CreateJobScreen() {
         quality: 0.8,
       })
 
-      console.log("Image picker result:", result)
       if (!result.canceled && result.assets[0]) {
-        console.log("Image selected:", result.assets[0].uri)
         setFormData({ ...formData, imageUri: result.assets[0].uri })
       }
     } catch (error) {
@@ -179,13 +206,10 @@ export default function CreateJobScreen() {
     }
   }
 
-  // ============= FUNCIÓN UNIFICADA PARA SELECCIONAR IMAGEN =============
   const showImageOptions = () => {
     if (Platform.OS === "web") {
-      // En web, solo abrir el selector de archivos
       pickImageWeb()
     } else {
-      // En móvil, mostrar opciones de galería o cámara
       Alert.alert(
         "Agregar Imagen",
         "Selecciona una opción",
@@ -208,16 +232,13 @@ export default function CreateJobScreen() {
     }
   }
 
-  // Función para eliminar imagen
   const removeImage = () => {
     setFormData({ ...formData, imageUri: undefined })
-    // Limpiar el input file en web
     if (Platform.OS === "web" && fileInputRef.current) {
       fileInputRef.current.value = ""
     }
   }
 
-  // Función para subir imagen a Firebase Storage
   const uploadImage = async (uri: string): Promise<string> => {
     try {
       setImageUploading(true)
@@ -227,7 +248,6 @@ export default function CreateJobScreen() {
       const imageRef = ref(storage, imageName)
 
       if (Platform.OS === "web") {
-        // En web, usar el archivo directamente del input para evitar problemas de CORS
         const fileInput = fileInputRef.current
         if (fileInput?.files?.[0]) {
           const file = fileInput.files[0]
@@ -236,7 +256,6 @@ export default function CreateJobScreen() {
           throw new Error("No se encontró el archivo")
         }
       } else {
-        // En móvil, convertir URI a blob
         const response = await fetch(uri)
         const blob = await response.blob()
         await uploadBytes(imageRef, blob)
@@ -261,6 +280,10 @@ export default function CreateJobScreen() {
         return !value ? "La descripción es requerida" : ""
       case "company":
         return !value ? "El cliente/empresa es requerido" : ""
+      case "address":
+        return !value
+          ? "La dirección es requerida para calcular distancias"
+          : ""
       default:
         return ""
     }
@@ -281,11 +304,17 @@ export default function CreateJobScreen() {
       title: validateField("title", formData.title),
       description: validateField("description", formData.description),
       company: validateField("company", formData.company),
+      address: validateField("address", formData.address),
     }
 
     setErrors(newErrors)
 
     if (Object.values(newErrors).some((error) => error !== "")) {
+      elegantToast.error({
+        title: "Campos incompletos",
+        description: "Por favor completa todos los campos requeridos",
+        duration: 3000,
+      })
       return
     }
 
@@ -294,9 +323,8 @@ export default function CreateJobScreen() {
     try {
       let imageURL = null
 
-      // Intentar subir imagen si existe
+      // Subir imagen si existe
       if (formData.imageUri) {
-        console.log("📸 Intentando subir imagen...")
         try {
           imageURL = await uploadImage(formData.imageUri)
           console.log("✅ Imagen subida exitosamente:", imageURL)
@@ -311,11 +339,31 @@ export default function CreateJobScreen() {
         }
       }
 
+      // Obtener coordenadas de la dirección
+      setIsGeocodingAddress(true)
+      const coordinates = await getCoordinatesFromAddress(formData.address)
+      setIsGeocodingAddress(false)
+
+      if (!coordinates) {
+        elegantToast.error({
+          title: "Error con la dirección",
+          description:
+            "No se pudieron obtener las coordenadas de la dirección. Verifica que sea válida.",
+          duration: 5000,
+        })
+        setIsLoading(false)
+        return
+      }
+
+      console.log("📍 Coordenadas obtenidas:", coordinates)
+
       const jobData = {
         title: formData.title,
         description: formData.description,
         company: formData.company,
-        address: formData.address,
+        location: formData.address, // Guardamos la dirección completa
+        latitude: coordinates.latitude, // ✨ Coordenadas automáticas
+        longitude: coordinates.longitude, // ✨ Coordenadas automáticas
         accountManager: accountManager,
         responsibilities: responsibilities,
         imageURL: imageURL,
@@ -332,7 +380,7 @@ export default function CreateJobScreen() {
 
       elegantToast.success({
         title: "¡Éxito!",
-        description: "Empleo creado correctamente",
+        description: "Empleo creado correctamente con coordenadas",
         duration: 4000,
       })
 
@@ -346,13 +394,15 @@ export default function CreateJobScreen() {
       })
     } finally {
       setIsLoading(false)
+      setIsGeocodingAddress(false)
     }
   }
 
   const isFormValid: boolean = !!(
     formData.title &&
     formData.description &&
-    formData.company
+    formData.company &&
+    formData.address
   )
 
   return (
@@ -547,25 +597,47 @@ export default function CreateJobScreen() {
 
             {/* Dirección */}
             <Box>
-              <Text
-                color="white"
+              <HStack
+                justifyContent="space-between"
+                alignItems="center"
                 mb={3}
-                fontSize="md"
               >
-                Dirección
-              </Text>
+                <Text
+                  color="white"
+                  fontSize="md"
+                >
+                  Dirección *
+                </Text>
+                {isGeocodingAddress && (
+                  <HStack
+                    alignItems="center"
+                    space={2}
+                  >
+                    <Spinner
+                      color="primary.500"
+                      size="sm"
+                    />
+                    <Text
+                      color="primary.500"
+                      fontSize="xs"
+                    >
+                      Obteniendo coordenadas...
+                    </Text>
+                  </HStack>
+                )}
+              </HStack>
               <Input
-                placeholder="ej. 123 Main St, Miami, FL"
+                placeholder="ej. 123 Main St, Miami, FL 33101"
                 placeholderTextColor="gray.400"
                 bg="gray.800"
-                borderColor="gray.700"
+                borderColor={errors.address ? "red.500" : "gray.700"}
                 borderWidth={1}
                 borderRadius="lg"
                 color="white"
                 fontSize="md"
                 py={4}
                 _focus={{
-                  borderColor: "primary.500",
+                  borderColor: errors.address ? "red.500" : "primary.500",
                   bg: "gray.800",
                 }}
                 style={{ backgroundColor: "#262626" }}
@@ -574,7 +646,7 @@ export default function CreateJobScreen() {
                     as={MaterialIcons}
                     name="location-on"
                     ml={4}
-                    color="gray.400"
+                    color={errors.address ? "red.500" : "gray.400"}
                     size="md"
                   />
                 }
@@ -582,7 +654,31 @@ export default function CreateJobScreen() {
                 onChangeText={(value: string) =>
                   handleFieldChange("address", value)
                 }
+                onBlur={() =>
+                  setErrors({
+                    ...errors,
+                    address: validateField("address", formData.address),
+                  })
+                }
+                isInvalid={!!errors.address}
               />
+              {errors.address ? (
+                <Text
+                  color="red.500"
+                  fontSize="sm"
+                  mt={1}
+                >
+                  {errors.address}
+                </Text>
+              ) : (
+                <Text
+                  color="gray.500"
+                  fontSize="xs"
+                  mt={1}
+                >
+                  Se obtendrán las coordenadas automáticamente
+                </Text>
+              )}
             </Box>
 
             {/* Account Manager (solo lectura) */}
@@ -760,10 +856,17 @@ export default function CreateJobScreen() {
                 bg={isFormValid ? "primary.500" : "gray.700"}
                 py={4}
                 borderRadius="lg"
-                opacity={isLoading || imageUploading ? 0.6 : 1}
-                disabled={!isFormValid || isLoading || imageUploading}
+                opacity={
+                  isLoading || imageUploading || isGeocodingAddress ? 0.6 : 1
+                }
+                disabled={
+                  !isFormValid ||
+                  isLoading ||
+                  imageUploading ||
+                  isGeocodingAddress
+                }
               >
-                {isLoading || imageUploading ? (
+                {isLoading || imageUploading || isGeocodingAddress ? (
                   <HStack
                     justifyContent="center"
                     alignItems="center"
@@ -778,7 +881,11 @@ export default function CreateJobScreen() {
                       fontSize="md"
                       fontWeight="bold"
                     >
-                      {imageUploading ? "Subiendo imagen..." : "Creando..."}
+                      {imageUploading
+                        ? "Subiendo imagen..."
+                        : isGeocodingAddress
+                        ? "Obteniendo coordenadas..."
+                        : "Creando..."}
                     </Text>
                   </HStack>
                 ) : (
