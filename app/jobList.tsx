@@ -464,7 +464,7 @@ export default function JobsListScreen() {
           </VStack>
         </HStack>
 
-        <Button
+        {/* <Button
           bg="green.600"
           _pressed={{ bg: "green.700" }}
           size="sm"
@@ -479,7 +479,7 @@ export default function JobsListScreen() {
           _text={{ fontWeight: "medium", fontSize: "sm" }}
         >
           Crear
-        </Button>
+        </Button> */}
       </HStack>
 
       {loading ? (

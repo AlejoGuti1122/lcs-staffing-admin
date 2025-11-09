@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "202987826735",
+    "project_id": "lcs-staffing-admin",
+    "storage_bucket": "lcs-staffing-admin.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:202987826735:android:8e1ae242d9b14c37dfa0da",
+        "android_client_info": {
+          "package_name": "com.lcs.staffingadmin"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCFAVTKSLd97iO_yUTsOfRfngnhOwVFNAY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

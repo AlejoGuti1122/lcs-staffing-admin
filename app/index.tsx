@@ -1,7 +1,7 @@
 import { router } from "expo-router"
 import { StatusBar } from "expo-status-bar"
 import { signInWithEmailAndPassword } from "firebase/auth"
-import { doc, setDoc } from "firebase/firestore"
+import { doc, getDoc, setDoc } from "firebase/firestore" // ⭐ Agregar getDoc
 import { Box, Button, HStack, Text, VStack } from "native-base"
 import React, { useRef, useState } from "react"
 import {
@@ -151,7 +151,7 @@ export default function LoginScreen() {
     Keyboard.dismiss()
   }
 
-  // Función de login
+  // ⭐ ÚNICA FUNCIÓN DE LOGIN (con validaciones)
   const handleLogin = async (): Promise<void> => {
     dismissKeyboard()
 
@@ -177,6 +177,48 @@ export default function LoginScreen() {
 
       console.log("Usuario autenticado:", user.uid)
 
+      // Verificar si el usuario está activo en Firestore
+      const userDoc = await getDoc(doc(db, "users", user.uid))
+
+      if (!userDoc.exists()) {
+        await auth.signOut()
+        elegantToast.error({
+          title: "Acceso denegado",
+          description: "Usuario no encontrado en el sistema",
+          duration: 5000,
+        })
+        setIsLoading(false)
+        return
+      }
+
+      const userData = userDoc.data()
+
+      // Verificar si el usuario está activo
+      if (userData.isActive === false) {
+        await auth.signOut()
+        elegantToast.error({
+          title: "Cuenta deshabilitada",
+          description:
+            "Tu cuenta ha sido desactivada. Contacta al administrador",
+          duration: 5000,
+        })
+        setIsLoading(false)
+        return
+      }
+
+      // Verificar si tiene rol de admin
+      if (userData.role !== "admin") {
+        await auth.signOut()
+        elegantToast.error({
+          title: "Acceso denegado",
+          description: "No tienes permisos de administrador",
+          duration: 5000,
+        })
+        setIsLoading(false)
+        return
+      }
+
+      // Si todo está bien, continuar con el guardado de login
       try {
         console.log("Guardando datos de login en Firestore...")
 
@@ -218,7 +260,7 @@ export default function LoginScreen() {
         duration: 4000,
       })
 
-      router.push("/jobList")
+      router.replace("/(tabs)")
     } catch (error: any) {
       console.error("Error completo en login:", error)
 
@@ -332,7 +374,7 @@ export default function LoginScreen() {
               </VStack>
 
               <VStack space={6}>
-                {/* Input de Correo - Diferentes según plataforma */}
+                {/* Input de Correo */}
                 <Box>
                   <Text
                     color="white"
@@ -392,7 +434,7 @@ export default function LoginScreen() {
                   ) : null}
                 </Box>
 
-                {/* Input de Contraseña - Diferentes según plataforma */}
+                {/* Input de Contraseña */}
                 <Box>
                   <Text
                     color="white"
