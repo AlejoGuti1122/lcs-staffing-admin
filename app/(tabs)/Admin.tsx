@@ -1,3 +1,4 @@
+import { MaterialIcons } from "@expo/vector-icons"
 import { StatusBar } from "expo-status-bar"
 import {
   createUserWithEmailAndPassword,
@@ -6,7 +7,12 @@ import {
 import { collection, doc, getDocs, setDoc, updateDoc } from "firebase/firestore"
 import { Badge, Box, Button, HStack, Switch, Text, VStack } from "native-base"
 import React, { useEffect, useState } from "react"
-import { FlatList, Platform, StyleSheet, TouchableOpacity } from "react-native"
+import {
+  Platform,
+  ScrollView,
+  StyleSheet,
+  TouchableOpacity,
+} from "react-native"
 import { TextInput as PaperTextInput } from "react-native-paper"
 import { auth, db } from "../../config/firebase"
 import { useElegantToast } from "../hooks/useElegantToast"
@@ -161,7 +167,6 @@ export default function AdminManagement() {
     setEditingId(admin.id)
   }
 
-  // ⭐ NUEVA FUNCIÓN: Resetear contraseña
   const handleResetPassword = async (email: string) => {
     try {
       await sendPasswordResetEmail(auth, email)
@@ -193,137 +198,137 @@ export default function AdminManagement() {
     >
       <StatusBar style="light" />
 
-      <VStack
-        p={6}
-        space={6}
+      <ScrollView
+        contentContainerStyle={{ padding: 24 }}
+        showsVerticalScrollIndicator={false}
       >
-        <HStack
-          alignItems="center"
-          mb={4}
-        >
-          <Box
-            bg="primary.500"
-            px={2}
-            py={1}
-            borderRadius="sm"
+        <VStack space={6}>
+          <HStack
+            alignItems="center"
+            mb={4}
           >
+            <Box
+              bg="primary.500"
+              px={2}
+              py={1}
+              borderRadius="sm"
+            >
+              <Text
+                color="white"
+                fontWeight="bold"
+                fontSize="sm"
+              >
+                LCS
+              </Text>
+            </Box>
             <Text
               color="white"
-              fontWeight="bold"
-              fontSize="sm"
+              fontSize="xl"
+              ml={3}
+              fontWeight="medium"
             >
-              LCS
+              {editingId ? "Editar" : "Crear"} Administrador
             </Text>
-          </Box>
-          <Text
-            color="white"
-            fontSize="xl"
-            ml={3}
-            fontWeight="medium"
-          >
-            {editingId ? "Editar" : "Crear"} Administrador
-          </Text>
-        </HStack>
+          </HStack>
 
-        <Box>
-          <Text
-            color="white"
-            mb={2}
-          >
-            Correo
-          </Text>
-          {Platform.OS === "web" ? (
-            <WebInput
-              placeholder="admin@correo.com"
-              value={email}
-              onChangeText={setEmail}
-              type="email"
-              icon="📧"
-            />
-          ) : (
-            <PaperTextInput
-              mode="outlined"
-              placeholder="admin@correo.com"
-              value={email}
-              onChangeText={setEmail}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              left={<PaperTextInput.Icon icon="email" />}
-              style={styles.paperInput}
-              theme={{ colors: { primary: "#3b82f6", outline: "#d1d5db" } }}
-            />
-          )}
-        </Box>
-
-        {!editingId && (
           <Box>
             <Text
               color="white"
               mb={2}
             >
-              Contraseña
+              Correo
             </Text>
             {Platform.OS === "web" ? (
               <WebInput
-                placeholder="••••••••"
-                value={password}
-                onChangeText={setPassword}
-                type="password"
-                icon="🔒"
+                placeholder="admin@correo.com"
+                value={email}
+                onChangeText={setEmail}
+                type="email"
+                icon="📧"
               />
             ) : (
               <PaperTextInput
                 mode="outlined"
-                placeholder="••••••••"
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry
-                left={<PaperTextInput.Icon icon="lock" />}
+                placeholder="admin@correo.com"
+                value={email}
+                onChangeText={setEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                left={<PaperTextInput.Icon icon="email" />}
                 style={styles.paperInput}
                 theme={{ colors: { primary: "#3b82f6", outline: "#d1d5db" } }}
               />
             )}
           </Box>
-        )}
 
-        <HStack space={3}>
-          <Button
-            flex={1}
-            bg="primary.500"
-            onPress={handleSave}
-            isLoading={isLoading}
-          >
-            {editingId ? "Actualizar" : "Crear"}
-          </Button>
-          {editingId && (
+          {!editingId && (
+            <Box>
+              <Text
+                color="white"
+                mb={2}
+              >
+                Contraseña
+              </Text>
+              {Platform.OS === "web" ? (
+                <WebInput
+                  placeholder="••••••••"
+                  value={password}
+                  onChangeText={setPassword}
+                  type="password"
+                  icon="🔒"
+                />
+              ) : (
+                <PaperTextInput
+                  mode="outlined"
+                  placeholder="••••••••"
+                  value={password}
+                  onChangeText={setPassword}
+                  secureTextEntry
+                  left={<PaperTextInput.Icon icon="lock" />}
+                  style={styles.paperInput}
+                  theme={{ colors: { primary: "#3b82f6", outline: "#d1d5db" } }}
+                />
+              )}
+            </Box>
+          )}
+
+          <HStack space={3}>
             <Button
               flex={1}
-              bg="gray.600"
-              onPress={() => {
-                setEditingId(null)
-                setEmail("")
-                setPassword("")
-              }}
+              bg="primary.500"
+              onPress={handleSave}
+              isLoading={isLoading}
             >
-              Cancelar
+              {editingId ? "Actualizar" : "Crear"}
             </Button>
-          )}
-        </HStack>
+            {editingId && (
+              <Button
+                flex={1}
+                bg="gray.600"
+                onPress={() => {
+                  setEditingId(null)
+                  setEmail("")
+                  setPassword("")
+                }}
+              >
+                Cancelar
+              </Button>
+            )}
+          </HStack>
 
-        <Text
-          color="white"
-          fontSize="lg"
-          mt={4}
-          fontWeight="medium"
-        >
-          Lista de Administradores
-        </Text>
+          <Text
+            color="white"
+            fontSize="lg"
+            mt={4}
+            fontWeight="medium"
+          >
+            Lista de Administradores
+          </Text>
 
-        <FlatList
-          data={admins}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
+          {/* ✅ AHORA USA .map() EN LUGAR DE FlatList */}
+          {admins.map((item) => (
             <Box
+              key={item.id}
               bg="gray.800"
               p={4}
               borderRadius="lg"
@@ -371,7 +376,6 @@ export default function AdminManagement() {
                   </Text>
                 </VStack>
 
-                {/* ⭐ CONTROLES ACTUALIZADOS */}
                 <HStack
                   space={2}
                   alignItems="center"
@@ -382,15 +386,7 @@ export default function AdminManagement() {
                       py={1}
                       bg="gray.700"
                       borderRadius="md"
-                    >
-                      {/* <Text
-                        color="gray.500"
-                        fontSize="xs"
-                        fontWeight="medium"
-                      >
-                        Protegido
-                      </Text> */}
-                    </Box>
+                    />
                   ) : (
                     <>
                       <Switch
@@ -399,8 +395,7 @@ export default function AdminManagement() {
                         size="sm"
                       />
 
-                      {/* Botón Reset Password */}
-                      <TouchableOpacity
+                      {/* <TouchableOpacity
                         onPress={() => handleResetPassword(item.email)}
                         style={{
                           backgroundColor: "#f97316",
@@ -416,27 +411,39 @@ export default function AdminManagement() {
                         >
                           🔑 Reset
                         </Text>
-                      </TouchableOpacity>
+                      </TouchableOpacity> */}
 
-                      {/* Botón Editar */}
-                      <TouchableOpacity onPress={() => handleEdit(item)}>
+                      <TouchableOpacity
+                        onPress={() => handleEdit(item)}
+                        style={{
+                         
+                          paddingHorizontal: 10,
+                          paddingVertical: 8,
+                          borderRadius: 8,
+                          flexDirection: "row",
+                          alignItems: "center",
+                          gap: 6,
+                        }}
+                      >
+                        <MaterialIcons
+                          name="edit"
+                          size={18}
+                          color="white"
+                        />
                         <Text
-                          color="primary.500"
-                          fontSize="sm"
+                          color="white"
+                          fontSize="xs"
                           fontWeight="medium"
-                        >
-                          Editar
-                        </Text>
+                        ></Text>
                       </TouchableOpacity>
                     </>
                   )}
                 </HStack>
               </HStack>
             </Box>
-          )}
-          style={{ maxHeight: 400 }}
-        />
-      </VStack>
+          ))}
+        </VStack>
+      </ScrollView>
     </Box>
   )
 }

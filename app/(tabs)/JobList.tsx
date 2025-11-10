@@ -548,7 +548,7 @@ export default function JobsListScreen() {
                   color="white"
                 />
               }
-              onPress={() => router.push("/createJob")}
+              onPress={() => router.push("/CreateJob")}
               mt={2}
             >
               Crear Primer Empleo
