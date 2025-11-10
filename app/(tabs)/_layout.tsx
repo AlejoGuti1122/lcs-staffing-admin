@@ -37,8 +37,8 @@ export default function TabsLayout() {
         tabBarStyle: {
           backgroundColor: "#1f2937",
           borderTopWidth: 0,
-          height: Platform.OS === "ios" ? 90 : 65,
-          paddingBottom: Platform.OS === "ios" ? 20 : 8,
+          height: Platform.OS === "ios" ? 95 : 75,
+          paddingBottom: Platform.OS === "ios" ? 28 : 8,
           paddingTop: 12,
           shadowColor: "#000",
           shadowOffset: { width: 0, height: -4 },
@@ -51,7 +51,7 @@ export default function TabsLayout() {
         tabBarLabelStyle: {
           fontSize: 9,
           fontWeight: "600",
-          marginTop: 1,
+          marginTop: 0,
         },
       }}
     >
