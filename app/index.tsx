@@ -260,7 +260,7 @@ export default function LoginScreen() {
         duration: 4000,
       })
 
-      router.replace("/(tabs)")
+      router.replace("/(tabs)/JobList") // ← Ruta específica
     } catch (error: any) {
       console.error("Error completo en login:", error)
 

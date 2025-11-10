@@ -25,8 +25,8 @@ import {
   StyleSheet,
   TextInput,
 } from "react-native"
-import { db, storage } from "../config/firebase"
-import { useElegantToast } from "./hooks/useElegantToast"
+import { db, storage } from "../../config/firebase"
+import { useElegantToast } from "../hooks/useElegantToast"
 
 interface FormData {
   title: string

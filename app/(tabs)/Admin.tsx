@@ -8,8 +8,8 @@ import { Badge, Box, Button, HStack, Switch, Text, VStack } from "native-base"
 import React, { useEffect, useState } from "react"
 import { FlatList, Platform, StyleSheet, TouchableOpacity } from "react-native"
 import { TextInput as PaperTextInput } from "react-native-paper"
-import { auth, db } from "../config/firebase"
-import { useElegantToast } from "./hooks/useElegantToast"
+import { auth, db } from "../../config/firebase"
+import { useElegantToast } from "../hooks/useElegantToast"
 
 interface Admin {
   id: string

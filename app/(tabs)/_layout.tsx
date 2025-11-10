@@ -2,27 +2,27 @@ import { Ionicons } from "@expo/vector-icons"
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs"
 import React from "react"
 import { Platform } from "react-native"
-import AdminManagement from "../admin"
-import createJob from "../createJob"
-import JobList from "../jobList"
+import AdminManagement from "./Admin"
+import CreateJob from "./CreateJob"
+import JobList from "./JobList" // ← ÚNICO CAMBIO: mayúscula
 
 const Tab = createBottomTabNavigator()
 
 const tabs = [
   {
-    name: "Dashboard",
+    name: "JobList",
     component: JobList,
     icon: "grid-outline",
     label: "Inicio",
   },
   {
-    name: "Jobs",
-    component: createJob,
+    name: "CreateJob",
+    component: CreateJob,
     icon: "briefcase-outline",
     label: "Empleos",
   },
   {
-    name: "Admins",
+    name: "Admin",
     component: AdminManagement,
     icon: "people-outline",
     label: "Admins",
@@ -38,8 +38,8 @@ export default function TabsLayout() {
           backgroundColor: "#1f2937",
           borderTopWidth: 0,
           height: Platform.OS === "ios" ? 88 : 70,
-          paddingBottom: Platform.OS === "ios" ? 28 : 12, // 👈 Más espacio
-          paddingTop: 12, // 👈 Más espacio arriba
+          paddingBottom: Platform.OS === "ios" ? 28 : 12,
+          paddingTop: 12,
           shadowColor: "#000",
           shadowOffset: { width: 0, height: -4 },
           shadowOpacity: 0.15,
@@ -51,7 +51,7 @@ export default function TabsLayout() {
         tabBarLabelStyle: {
           fontSize: 11,
           fontWeight: "600",
-          marginTop: 4, // 👈 Separación entre ícono y texto
+          marginTop: 4,
         },
       }}
     >
@@ -61,11 +61,11 @@ export default function TabsLayout() {
           name={tab.name}
           component={tab.component}
           options={{
-            tabBarLabel: tab.label, // 👈 Simple string
+            tabBarLabel: tab.label,
             tabBarIcon: ({ focused, color }) => (
               <Ionicons
                 name={tab.icon as any}
-                size={24} // 👈 Tamaño consistente
+                size={24}
                 color={focused ? "#3b82f6" : color}
               />
             ),

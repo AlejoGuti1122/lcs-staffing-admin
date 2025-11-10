@@ -26,12 +26,12 @@ import { FlatList, ListRenderItem } from "react-native"
 
 import { Image } from "expo-image"
 
-import { db, storage } from "../config/firebase"
+import { db, storage } from "../../config/firebase"
 
-import { EditJobButton } from "./components/EditButton"
+import { EditJobButton } from "../components/EditButton"
 
-import { EditJobModal } from "./components/ModalEdit"
-import { useElegantToast } from "./hooks/useElegantToast"
+import { EditJobModal } from "../components/ModalEdit"
+import { useElegantToast } from "../hooks/useElegantToast"
 
 interface Job {
   id: string
