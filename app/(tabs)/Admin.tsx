@@ -340,7 +340,7 @@ export default function AdminManagement() {
                 justifyContent="space-between"
                 alignItems="center"
               >
-                <VStack flex={1}>
+                <VStack flex={1} mr={4}>
                   <HStack
                     alignItems="center"
                     space={2}
@@ -349,6 +349,8 @@ export default function AdminManagement() {
                       color="white"
                       fontSize="md"
                       fontWeight="medium"
+                      numberOfLines={1}
+                      ellipsizeMode="tail"
                     >
                       {item.email}
                     </Text>
@@ -416,7 +418,6 @@ export default function AdminManagement() {
                       <TouchableOpacity
                         onPress={() => handleEdit(item)}
                         style={{
-                         
                           paddingHorizontal: 10,
                           paddingVertical: 8,
                           borderRadius: 8,
