@@ -27,7 +27,7 @@ interface Admin {
   updatedAt?: string
 }
 
-const SUPER_ADMIN_EMAIL = "lcssstafing@gmail.com"
+const SUPER_ADMIN_EMAIL = "lcsstaffing.app@gmail.com"
 
 const WebInput = ({
   placeholder,
@@ -340,7 +340,10 @@ export default function AdminManagement() {
                 justifyContent="space-between"
                 alignItems="center"
               >
-                <VStack flex={1} mr={4}>
+                <VStack
+                  flex={1}
+                  mr={4}
+                >
                   <HStack
                     alignItems="center"
                     space={2}
