@@ -433,20 +433,15 @@ export default function JobsListScreen() {
         borderBottomColor="gray.700"
       >
         <HStack alignItems="center">
-          <Box
-            bg="primary.500"
-            px={2}
-            py={1}
-            borderRadius="sm"
-          >
-            <Text
-              color="white"
-              fontWeight="bold"
-              fontSize="sm"
-            >
-              LCS
-            </Text>
-          </Box>
+          <Image
+            source={require("../../assets/images/logo.png")}
+            alt="LCS Staffing"
+            style={{
+              width: 100,
+              height: 35,
+            }}
+            contentFit="contain"
+          />
           <VStack ml={3}>
             <Text
               color="white"

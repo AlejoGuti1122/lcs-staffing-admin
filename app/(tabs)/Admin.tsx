@@ -5,7 +5,16 @@ import {
   sendPasswordResetEmail,
 } from "firebase/auth"
 import { collection, doc, getDocs, setDoc, updateDoc } from "firebase/firestore"
-import { Badge, Box, Button, HStack, Switch, Text, VStack } from "native-base"
+import {
+  Badge,
+  Box,
+  Button,
+  HStack,
+  Image,
+  Switch,
+  Text,
+  VStack,
+} from "native-base"
 import React, { useEffect, useState } from "react"
 import {
   Platform,
@@ -27,7 +36,7 @@ interface Admin {
   updatedAt?: string
 }
 
-const SUPER_ADMIN_EMAIL = "lcsstaffing.app@gmail.com"
+const SUPER_ADMIN_EMAIL = "app@lcsstaffing.com"
 
 const WebInput = ({
   placeholder,
@@ -80,6 +89,9 @@ export default function AdminManagement() {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const toast = useElegantToast()
+  const [currentUserEmail, setCurrentUserEmail] = useState<string>("")
+  const [isCurrentUserSuperAdmin, setIsCurrentUserSuperAdmin] =
+    useState<boolean>(false)
 
   const loadAdmins = async () => {
     const snapshot = await getDocs(collection(db, "users"))
@@ -91,6 +103,13 @@ export default function AdminManagement() {
 
   useEffect(() => {
     loadAdmins()
+
+    // Verificar si el usuario logueado es superadmin
+    const currentUser = auth.currentUser
+    if (currentUser?.email) {
+      setCurrentUserEmail(currentUser.email)
+      setIsCurrentUserSuperAdmin(currentUser.email === SUPER_ADMIN_EMAIL)
+    }
   }, [])
 
   const handleSave = async () => {
@@ -203,118 +222,121 @@ export default function AdminManagement() {
         showsVerticalScrollIndicator={false}
       >
         <VStack space={6}>
-          <HStack
+          <VStack
             alignItems="center"
-            mb={4}
+            mb={2}
+            mt={-5}
           >
-            <Box
-              bg="primary.500"
-              px={2}
-              py={1}
-              borderRadius="sm"
-            >
-              <Text
-                color="white"
-                fontWeight="bold"
-                fontSize="sm"
-              >
-                LCS
-              </Text>
-            </Box>
+            <Image
+              source={require("../../assets/images/logo.png")}
+              alt="LCS Staffing"
+              width={120}
+              height={40}
+              resizeMode="contain"
+            />
             <Text
               color="white"
               fontSize="xl"
-              ml={3}
               fontWeight="medium"
             >
-              {editingId ? "Editar" : "Crear"} Administrador
+              {isCurrentUserSuperAdmin
+                ? (editingId ? "Editar" : "Crear") + " Administrador"
+                : "Gestión de Administradores"}
             </Text>
-          </HStack>
+          </VStack>
 
-          <Box>
-            <Text
-              color="white"
-              mb={2}
-            >
-              Correo
-            </Text>
-            {Platform.OS === "web" ? (
-              <WebInput
-                placeholder="admin@correo.com"
-                value={email}
-                onChangeText={setEmail}
-                type="email"
-                icon="📧"
-              />
-            ) : (
-              <PaperTextInput
-                mode="outlined"
-                placeholder="admin@correo.com"
-                value={email}
-                onChangeText={setEmail}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                left={<PaperTextInput.Icon icon="email" />}
-                style={styles.paperInput}
-                theme={{ colors: { primary: "#3b82f6", outline: "#d1d5db" } }}
-              />
-            )}
-          </Box>
+          {isCurrentUserSuperAdmin && (
+            <>
+              <Box>
+                <Text
+                  color="white"
+                  mb={2}
+                >
+                  Correo
+                </Text>
+                {Platform.OS === "web" ? (
+                  <WebInput
+                    placeholder="admin@correo.com"
+                    value={email}
+                    onChangeText={setEmail}
+                    type="email"
+                    icon="📧"
+                  />
+                ) : (
+                  <PaperTextInput
+                    mode="outlined"
+                    placeholder="admin@correo.com"
+                    value={email}
+                    onChangeText={setEmail}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    left={<PaperTextInput.Icon icon="email" />}
+                    style={styles.paperInput}
+                    theme={{
+                      colors: { primary: "#3b82f6", outline: "#d1d5db" },
+                    }}
+                  />
+                )}
+              </Box>
 
-          {!editingId && (
-            <Box>
-              <Text
-                color="white"
-                mb={2}
-              >
-                Contraseña
-              </Text>
-              {Platform.OS === "web" ? (
-                <WebInput
-                  placeholder="••••••••"
-                  value={password}
-                  onChangeText={setPassword}
-                  type="password"
-                  icon="🔒"
-                />
-              ) : (
-                <PaperTextInput
-                  mode="outlined"
-                  placeholder="••••••••"
-                  value={password}
-                  onChangeText={setPassword}
-                  secureTextEntry
-                  left={<PaperTextInput.Icon icon="lock" />}
-                  style={styles.paperInput}
-                  theme={{ colors: { primary: "#3b82f6", outline: "#d1d5db" } }}
-                />
+              {!editingId && (
+                <Box>
+                  <Text
+                    color="white"
+                    mb={2}
+                  >
+                    Contraseña
+                  </Text>
+                  {Platform.OS === "web" ? (
+                    <WebInput
+                      placeholder="••••••••"
+                      value={password}
+                      onChangeText={setPassword}
+                      type="password"
+                      icon="🔒"
+                    />
+                  ) : (
+                    <PaperTextInput
+                      mode="outlined"
+                      placeholder="••••••••"
+                      value={password}
+                      onChangeText={setPassword}
+                      secureTextEntry
+                      left={<PaperTextInput.Icon icon="lock" />}
+                      style={styles.paperInput}
+                      theme={{
+                        colors: { primary: "#3b82f6", outline: "#d1d5db" },
+                      }}
+                    />
+                  )}
+                </Box>
               )}
-            </Box>
-          )}
 
-          <HStack space={3}>
-            <Button
-              flex={1}
-              bg="primary.500"
-              onPress={handleSave}
-              isLoading={isLoading}
-            >
-              {editingId ? "Actualizar" : "Crear"}
-            </Button>
-            {editingId && (
-              <Button
-                flex={1}
-                bg="gray.600"
-                onPress={() => {
-                  setEditingId(null)
-                  setEmail("")
-                  setPassword("")
-                }}
-              >
-                Cancelar
-              </Button>
-            )}
-          </HStack>
+              <HStack space={3}>
+                <Button
+                  flex={1}
+                  bg="primary.500"
+                  onPress={handleSave}
+                  isLoading={isLoading}
+                >
+                  {editingId ? "Actualizar" : "Crear"}
+                </Button>
+                {editingId && (
+                  <Button
+                    flex={1}
+                    bg="gray.600"
+                    onPress={() => {
+                      setEditingId(null)
+                      setEmail("")
+                      setPassword("")
+                    }}
+                  >
+                    Cancelar
+                  </Button>
+                )}
+              </HStack>
+            </>
+          )}
 
           <Text
             color="white"
@@ -392,7 +414,7 @@ export default function AdminManagement() {
                       bg="gray.700"
                       borderRadius="md"
                     />
-                  ) : (
+                  ) : isCurrentUserSuperAdmin ? (
                     <>
                       <Switch
                         isChecked={item.isActive}
@@ -401,22 +423,22 @@ export default function AdminManagement() {
                       />
 
                       {/* <TouchableOpacity
-                        onPress={() => handleResetPassword(item.email)}
-                        style={{
-                          backgroundColor: "#f97316",
-                          paddingHorizontal: 8,
-                          paddingVertical: 4,
-                          borderRadius: 6,
-                        }}
-                      >
-                        <Text
-                          color="white"
-                          fontSize="xs"
-                          fontWeight="medium"
-                        >
-                          🔑 Reset
-                        </Text>
-                      </TouchableOpacity> */}
+        onPress={() => handleResetPassword(item.email)}
+        style={{
+          backgroundColor: "#f97316",
+          paddingHorizontal: 8,
+          paddingVertical: 4,
+          borderRadius: 6,
+        }}
+      >
+        <Text
+          color="white"
+          fontSize="xs"
+          fontWeight="medium"
+        >
+          🔑 Reset
+        </Text>
+      </TouchableOpacity> */}
 
                       <TouchableOpacity
                         onPress={() => handleEdit(item)}
@@ -441,7 +463,7 @@ export default function AdminManagement() {
                         ></Text>
                       </TouchableOpacity>
                     </>
-                  )}
+                  ) : null}
                 </HStack>
               </HStack>
             </Box>

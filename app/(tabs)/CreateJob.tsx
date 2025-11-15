@@ -449,20 +449,13 @@ export default function CreateJobScreen() {
             alignItems="center"
             ml={4}
           >
-            <Box
-              bg="primary.500"
-              px={2}
-              py={1}
-              borderRadius="sm"
-            >
-              <Text
-                color="white"
-                fontWeight="bold"
-                fontSize="sm"
-              >
-                LCS
-              </Text>
-            </Box>
+            <Image
+              source={require("../../assets/images/logo.png")}
+              alt="LCS Staffing"
+              width={100}
+              height={35}
+              resizeMode="contain"
+            />
             <Text
               color="white"
               fontSize="xl"
