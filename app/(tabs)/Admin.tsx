@@ -422,23 +422,25 @@ export default function AdminManagement() {
                         size="sm"
                       />
 
-                      {/* <TouchableOpacity
-        onPress={() => handleResetPassword(item.email)}
-        style={{
-          backgroundColor: "#f97316",
-          paddingHorizontal: 8,
-          paddingVertical: 4,
-          borderRadius: 6,
-        }}
-      >
-        <Text
-          color="white"
-          fontSize="xs"
-          fontWeight="medium"
-        >
-          🔑 Reset
-        </Text>
-      </TouchableOpacity> */}
+                      {/* {
+                        <TouchableOpacity
+                          onPress={() => handleResetPassword(item.email)}
+                          style={{
+                            backgroundColor: "#f97316",
+                            paddingHorizontal: 8,
+                            paddingVertical: 4,
+                            borderRadius: 6,
+                          }}
+                        >
+                          <Text
+                            color="white"
+                            fontSize="xs"
+                            fontWeight="medium"
+                          >
+                            🔑 Reset
+                          </Text>
+                        </TouchableOpacity>
+                      } */}
 
                       <TouchableOpacity
                         onPress={() => handleEdit(item)}
