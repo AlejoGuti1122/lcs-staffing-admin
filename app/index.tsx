@@ -2,7 +2,7 @@ import { router } from "expo-router"
 import { StatusBar } from "expo-status-bar"
 import { signInWithEmailAndPassword } from "firebase/auth"
 import { doc, getDoc, setDoc } from "firebase/firestore" // ⭐ Agregar getDoc
-import { Box, Button, HStack, Text, VStack } from "native-base"
+import { Box, Button, Image, Text, VStack } from "native-base"
 import React, { useRef, useState } from "react"
 import {
   Keyboard,
@@ -344,33 +344,21 @@ export default function LoginScreen() {
                 alignItems="center"
                 mb={10}
               >
-                <HStack
-                  alignItems="center"
-                  mb={2}
+                <Image
+                  source={require("../assets/images/logo.png")}
+                  alt="LCS Staffing"
+                  width={100}
+                  height={35}
+                  resizeMode="contain"
+                />
+                <Text
+                  color="white"
+                  fontSize="xl"
+                  fontWeight="medium"
+                  mt={4}
                 >
-                  <Box
-                    bg="primary.500"
-                    px={2}
-                    py={1}
-                    borderRadius="sm"
-                  >
-                    <Text
-                      color="white"
-                      fontWeight="bold"
-                      fontSize="sm"
-                    >
-                      LCS
-                    </Text>
-                  </Box>
-                  <Text
-                    color="white"
-                    fontSize="xl"
-                    ml={3}
-                    fontWeight="medium"
-                  >
-                    Iniciar Sesión
-                  </Text>
-                </HStack>
+                  Iniciar Sesión
+                </Text>
               </VStack>
 
               <VStack space={6}>
