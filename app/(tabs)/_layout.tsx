@@ -1,10 +1,15 @@
 import { Ionicons } from "@expo/vector-icons"
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs"
 import React from "react"
-import { Platform } from "react-native"
+import { LogBox, Platform } from "react-native"
 import AdminManagement from "./Admin"
 import CreateJob from "./CreateJob"
 import JobList from "./JobList" // ← ÚNICO CAMBIO: mayúscula
+
+// ← Agregar estas 3 líneas AQUÍ
+LogBox.ignoreLogs([
+  "VirtualizedLists should never be nested inside plain ScrollViews",
+])
 
 const Tab = createBottomTabNavigator()
 

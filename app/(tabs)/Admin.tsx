@@ -1,10 +1,20 @@
 import { MaterialIcons } from "@expo/vector-icons"
+import { router } from "expo-router"
 import { StatusBar } from "expo-status-bar"
 import {
   createUserWithEmailAndPassword,
+  onAuthStateChanged,
   sendPasswordResetEmail,
+  signOut,
 } from "firebase/auth"
-import { collection, doc, getDocs, setDoc, updateDoc } from "firebase/firestore"
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  setDoc,
+  updateDoc,
+} from "firebase/firestore"
 import {
   Badge,
   Box,
@@ -17,6 +27,8 @@ import {
 } from "native-base"
 import React, { useEffect, useState } from "react"
 import {
+  ActivityIndicator,
+  Alert,
   Platform,
   ScrollView,
   StyleSheet,
@@ -83,6 +95,10 @@ const WebInput = ({
 )
 
 export default function AdminManagement() {
+  // ⭐ ESTADOS DE PROTECCIÓN
+  const [isChecking, setIsChecking] = useState(true)
+  const [isAuthorized, setIsAuthorized] = useState(false)
+
   const [admins, setAdmins] = useState<Admin[]>([])
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
@@ -93,6 +109,71 @@ export default function AdminManagement() {
   const [isCurrentUserSuperAdmin, setIsCurrentUserSuperAdmin] =
     useState<boolean>(false)
 
+  // ⭐ PROTECCIÓN DE RUTA - Espera a que Firebase Auth se inicialice completamente
+  useEffect(() => {
+    let hasRedirected = false
+
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (hasRedirected) return // Evitar múltiples redirecciones
+
+      if (!user) {
+        console.log("❌ No autenticado, redirigiendo a login...")
+        hasRedirected = true
+        router.replace("/")
+        setIsChecking(false)
+        return
+      }
+
+      try {
+        console.log("🔍 Verificando permisos para:", user.email)
+        const userDoc = await getDoc(doc(db, "users", user.uid))
+
+        if (!userDoc.exists()) {
+          console.log("❌ Usuario no existe en Firestore")
+          await auth.signOut()
+          hasRedirected = true
+          router.replace("/")
+          setIsChecking(false)
+          return
+        }
+
+        const userData = userDoc.data()
+
+        if (userData.role !== "admin") {
+          console.log("❌ Usuario no es admin")
+          await auth.signOut()
+          hasRedirected = true
+          router.replace("/")
+          setIsChecking(false)
+          return
+        }
+
+        if (userData.isActive === false) {
+          console.log("❌ Cuenta inactiva")
+          await auth.signOut()
+          hasRedirected = true
+          router.replace("/")
+          setIsChecking(false)
+          return
+        }
+
+        // ✅ Todo OK - permitir acceso
+        console.log("✅ Acceso autorizado para:", user.email)
+        setIsAuthorized(true)
+        setCurrentUserEmail(user.email || "")
+        setIsCurrentUserSuperAdmin(user.email === SUPER_ADMIN_EMAIL)
+        setIsChecking(false)
+      } catch (error) {
+        console.error("Error verificando permisos:", error)
+        hasRedirected = true
+        router.replace("/")
+        setIsChecking(false)
+      }
+    })
+
+    return () => unsubscribe()
+  }, [])
+
   const loadAdmins = async () => {
     const snapshot = await getDocs(collection(db, "users"))
     const adminUsers = snapshot.docs
@@ -102,15 +183,10 @@ export default function AdminManagement() {
   }
 
   useEffect(() => {
-    loadAdmins()
-
-    // Verificar si el usuario logueado es superadmin
-    const currentUser = auth.currentUser
-    if (currentUser?.email) {
-      setCurrentUserEmail(currentUser.email)
-      setIsCurrentUserSuperAdmin(currentUser.email === SUPER_ADMIN_EMAIL)
+    if (isAuthorized) {
+      loadAdmins()
     }
-  }, [])
+  }, [isAuthorized])
 
   const handleSave = async () => {
     if (!email || (!editingId && !password))
@@ -209,6 +285,72 @@ export default function AdminManagement() {
     return admin.email === SUPER_ADMIN_EMAIL || admin.isSuperAdmin
   }
 
+  const handleLogout = () => {
+    if (Platform.OS === "web") {
+      if (window.confirm("¿Estás seguro que deseas cerrar sesión?")) {
+        performLogout()
+      }
+    } else {
+      Alert.alert("Cerrar sesión", "¿Estás seguro que deseas salir?", [
+        {
+          text: "Cancelar",
+          style: "cancel",
+        },
+        {
+          text: "Salir",
+          style: "destructive",
+          onPress: performLogout,
+        },
+      ])
+    }
+  }
+
+  const performLogout = async () => {
+    try {
+      await signOut(auth)
+      toast.success({
+        title: "Sesión cerrada",
+        description: "Hasta pronto",
+      })
+      router.replace("/")
+    } catch (error) {
+      console.error("Error al cerrar sesión:", error)
+      toast.error({
+        title: "Error",
+        description: "No se pudo cerrar la sesión",
+      })
+    }
+  }
+
+  // ⭐ MOSTRAR LOADING MIENTRAS VERIFICA (SIEMPRE, no mostrar contenido hasta verificar)
+  if (isChecking || !isAuthorized) {
+    return (
+      <Box
+        flex={1}
+        bg="gray.900"
+        justifyContent="center"
+        alignItems="center"
+      >
+        <VStack
+          space={4}
+          alignItems="center"
+        >
+          <ActivityIndicator
+            size="large"
+            color="#3b82f6"
+          />
+          <Text
+            color="white"
+            fontSize="md"
+          >
+            Verificando permisos...
+          </Text>
+        </VStack>
+      </Box>
+    )
+  }
+
+  // ✅ USUARIO AUTORIZADO - MOSTRAR CONTENIDO
   return (
     <Box
       flex={1}
@@ -347,7 +489,6 @@ export default function AdminManagement() {
             Lista de Administradores
           </Text>
 
-          {/* ✅ AHORA USA .map() EN LUGAR DE FlatList */}
           {admins.map((item) => (
             <Box
               key={item.id}
@@ -422,26 +563,6 @@ export default function AdminManagement() {
                         size="sm"
                       />
 
-                      {/* {
-                        <TouchableOpacity
-                          onPress={() => handleResetPassword(item.email)}
-                          style={{
-                            backgroundColor: "#f97316",
-                            paddingHorizontal: 8,
-                            paddingVertical: 4,
-                            borderRadius: 6,
-                          }}
-                        >
-                          <Text
-                            color="white"
-                            fontSize="xs"
-                            fontWeight="medium"
-                          >
-                            🔑 Reset
-                          </Text>
-                        </TouchableOpacity>
-                      } */}
-
                       <TouchableOpacity
                         onPress={() => handleEdit(item)}
                         style={{
@@ -470,6 +591,27 @@ export default function AdminManagement() {
               </HStack>
             </Box>
           ))}
+
+          <Box mt={6}>
+            <TouchableOpacity
+              onPress={handleLogout}
+              style={styles.logoutButton}
+              activeOpacity={0.8}
+            >
+              <MaterialIcons
+                name="logout"
+                size={20}
+                color="#fff"
+              />
+              <Text
+                color="white"
+                fontSize="md"
+                fontWeight="semibold"
+              >
+                Cerrar sesión
+              </Text>
+            </TouchableOpacity>
+          </Box>
         </VStack>
       </ScrollView>
     </Box>
@@ -480,5 +622,20 @@ const styles = StyleSheet.create({
   paperInput: {
     backgroundColor: "white",
     fontSize: 16,
+  },
+  logoutButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#ef4444",
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    gap: 10,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
   },
 })

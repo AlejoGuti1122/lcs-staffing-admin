@@ -1,6 +1,14 @@
 import { MaterialIcons } from "@expo/vector-icons"
 import * as ImagePicker from "expo-image-picker"
-import { doc, Firestore, updateDoc } from "firebase/firestore"
+import {
+  collection,
+  doc,
+  Firestore,
+  getDocs,
+  query,
+  updateDoc,
+  where,
+} from "firebase/firestore"
 import { getDownloadURL, ref, uploadBytes } from "firebase/storage"
 import {
   Badge,
@@ -13,13 +21,14 @@ import {
   Input,
   Modal,
   Pressable,
+  Select,
   Spinner,
   Text,
   TextArea,
   VStack,
 } from "native-base"
 import React, { useEffect, useRef, useState } from "react"
-import { Alert, Animated, Keyboard, Platform } from "react-native"
+import { Alert, Animated, Keyboard, Platform, ScrollView } from "react-native"
 
 interface Job {
   id: string
@@ -31,6 +40,14 @@ interface Job {
   requirements?: string[]
   status: string
   imageURL?: string
+  accountManager?: string // ← Agregar esto
+}
+
+interface Admin {
+  id: string
+  email: string
+  role: string
+  isActive: boolean
 }
 
 interface EditJobModalProps {
@@ -57,14 +74,51 @@ export const EditJobModal: React.FC<EditJobModalProps> = ({
     description: "",
     company: "",
     location: "",
+    accountManager: "", // ← Nuevo campo
     imageUri: undefined as string | undefined,
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [imageUploading, setImageUploading] = useState(false)
   const [errors, setErrors] = useState<{ [key: string]: string }>({})
 
+  // ← Nuevo estado para administradores
+  const [admins, setAdmins] = useState<Admin[]>([])
+  const [loadingAdmins, setLoadingAdmins] = useState(false)
+
   const scaleAnim = React.useRef(new Animated.Value(1)).current
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // ← Cargar administradores activos
+  const loadAdmins = async () => {
+    setLoadingAdmins(true)
+    try {
+      const q = query(
+        collection(db, "users"),
+        where("role", "==", "admin"),
+        where("isActive", "==", true)
+      )
+      const snapshot = await getDocs(q)
+      const adminsList = snapshot.docs.map(
+        (doc) =>
+          ({
+            id: doc.id,
+            ...doc.data(),
+          } as Admin)
+      )
+      setAdmins(adminsList)
+    } catch (error) {
+      console.error("Error cargando administradores:", error)
+      onError("Error", "No se pudieron cargar los administradores")
+    } finally {
+      setLoadingAdmins(false)
+    }
+  }
+
+  useEffect(() => {
+    if (isOpen) {
+      loadAdmins() // Cargar admins cuando se abre el modal
+    }
+  }, [isOpen])
 
   useEffect(() => {
     if (job) {
@@ -73,6 +127,7 @@ export const EditJobModal: React.FC<EditJobModalProps> = ({
         description: job.description || "",
         company: job.company || "",
         location: job.location || "",
+        accountManager: job.accountManager || "", // ← Cargar account manager actual
         imageUri: job.imageURL || undefined,
       })
       setErrors({})
@@ -155,10 +210,8 @@ export const EditJobModal: React.FC<EditJobModalProps> = ({
 
   const showImageOptions = () => {
     if (Platform.OS === "web") {
-      // En web (desktop y móvil), usar input file
       pickImageWeb()
     } else {
-      // Solo en app nativa mostrar opciones de galería/cámara
       Alert.alert(
         "Cambiar Imagen",
         "Selecciona una opción",
@@ -285,11 +338,13 @@ export const EditJobModal: React.FC<EditJobModalProps> = ({
         imageURL = null
       }
 
+      // ← Actualizar incluyendo el accountManager
       await updateDoc(doc(db, "jobs", job.id), {
         title: formData.title.trim(),
         description: formData.description.trim(),
         company: formData.company.trim(),
         location: formData.location.trim(),
+        accountManager: formData.accountManager || job.accountManager, // ← Guardar nuevo Account Manager
         imageURL: imageURL,
         updatedAt: new Date(),
       })
@@ -376,288 +431,374 @@ export const EditJobModal: React.FC<EditJobModalProps> = ({
         <Modal.Body
           bg="gray.900"
           flex={1}
-          _scrollview={{
-            keyboardShouldPersistTaps: "handled",
-            showsVerticalScrollIndicator: false,
-          }}
         >
-          <VStack
-            space={4}
-            pb={4}
-            pt={4}
+          <ScrollView
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
           >
-            {/* Estado actual */}
-            <Box
-              bg="gray.800"
-              p={3}
-              borderRadius="md"
-              borderLeftWidth={3}
-              borderLeftColor={
-                job?.status === "active" ? "green.500" : "orange.500"
-              }
+            <VStack
+              space={4}
+              pb={4}
+              pt={4}
             >
-              <HStack
-                alignItems="center"
-                justifyContent="space-between"
+              {/* Estado actual */}
+              <Box
+                bg="gray.800"
+                p={3}
+                borderRadius="md"
+                borderLeftWidth={3}
+                borderLeftColor={
+                  job?.status === "active" ? "green.500" : "orange.500"
+                }
               >
-                <Text
-                  color="gray.300"
-                  fontSize="sm"
+                <HStack
+                  alignItems="center"
+                  justifyContent="space-between"
                 >
-                  Estado actual:
-                </Text>
-                <Badge
-                  colorScheme={job?.status === "active" ? "green" : "orange"}
-                >
-                  {job?.status === "active" ? "Activo" : "Inactivo"}
-                </Badge>
-              </HStack>
-            </Box>
-
-            {/* Imagen */}
-            <Box>
-              <Text
-                color="gray.300"
-                mb={2}
-                fontSize="sm"
-                fontWeight="medium"
-              >
-                Imagen del empleo
-              </Text>
-
-              {formData.imageUri ? (
-                <Box position="relative">
-                  <Image
-                    source={{ uri: formData.imageUri }}
-                    alt="Imagen del empleo"
-                    width="100%"
-                    height={150}
-                    borderRadius="lg"
-                  />
-                  <Pressable
-                    position="absolute"
-                    top={2}
-                    right={2}
-                    bg="red.500"
-                    p={2}
-                    borderRadius="full"
-                    onPress={removeImage}
+                  <Text
+                    color="gray.300"
+                    fontSize="sm"
                   >
-                    <Icon
-                      as={MaterialIcons}
-                      name="close"
-                      color="white"
-                      size="sm"
-                    />
-                  </Pressable>
-                  <Pressable
-                    position="absolute"
-                    bottom={2}
-                    right={2}
-                    bg="blue.600"
-                    p={2}
-                    borderRadius="full"
-                    onPress={showImageOptions}
+                    Estado actual:
+                  </Text>
+                  <Badge
+                    colorScheme={job?.status === "active" ? "green" : "orange"}
                   >
-                    <Icon
-                      as={MaterialIcons}
-                      name="edit"
-                      color="white"
-                      size="sm"
-                    />
-                  </Pressable>
-                </Box>
-              ) : (
-                <Pressable onPress={showImageOptions}>
-                  <Box
-                    bg="gray.800"
-                    borderWidth={2}
-                    borderColor="gray.700"
-                    borderStyle="dashed"
-                    borderRadius="lg"
-                    py={8}
+                    {job?.status === "active" ? "Activo" : "Inactivo"}
+                  </Badge>
+                </HStack>
+              </Box>
+
+              {/* ← SELECTOR DE ACCOUNT MANAGER */}
+              <FormControl>
+                <FormControl.Label>
+                  <HStack
                     alignItems="center"
+                    space={2}
                   >
                     <Icon
                       as={MaterialIcons}
-                      name="add-photo-alternate"
-                      color="gray.400"
-                      size="xl"
-                      mb={2}
+                      name="person"
+                      color="blue.400"
+                      size="sm"
+                    />
+                    <Text
+                      color="gray.300"
+                      fontWeight="medium"
+                    >
+                      Account Manager
+                    </Text>
+                  </HStack>
+                </FormControl.Label>
+
+                {loadingAdmins ? (
+                  <HStack
+                    bg="gray.800"
+                    p={3}
+                    borderRadius="md"
+                    alignItems="center"
+                    space={2}
+                  >
+                    <Spinner
+                      color="blue.500"
+                      size="sm"
                     />
                     <Text
                       color="gray.400"
                       fontSize="sm"
                     >
-                      {Platform.OS === "web"
-                        ? "Seleccionar imagen"
-                        : "Agregar imagen"}
+                      Cargando administradores...
                     </Text>
+                  </HStack>
+                ) : (
+                  <Select
+                    selectedValue={formData.accountManager}
+                    onValueChange={(value) =>
+                      setFormData({ ...formData, accountManager: value })
+                    }
+                    placeholder="Selecciona un Account Manager"
+                    bg="gray.800"
+                    color="white"
+                    borderColor="gray.700"
+                    _selectedItem={{
+                      bg: "blue.600",
+                      endIcon: (
+                        <Icon
+                          as={MaterialIcons}
+                          name="check"
+                          size="sm"
+                        />
+                      ),
+                    }}
+                    placeholderTextColor="gray.500"
+                    minWidth="200"
+                  >
+                    {admins.map((admin) => (
+                      <Select.Item
+                        key={admin.id}
+                        label={admin.email}
+                        value={admin.email}
+                      />
+                    ))}
+                  </Select>
+                )}
+
+                <Text
+                  color="gray.500"
+                  fontSize="xs"
+                  mt={1}
+                >
+                  {formData.accountManager
+                    ? `Account Manager actual: ${formData.accountManager}`
+                    : "Sin Account Manager asignado"}
+                </Text>
+              </FormControl>
+
+              {/* Imagen */}
+              <Box>
+                <Text
+                  color="gray.300"
+                  mb={2}
+                  fontSize="sm"
+                  fontWeight="medium"
+                >
+                  Imagen del empleo
+                </Text>
+
+                {formData.imageUri ? (
+                  <Box position="relative">
+                    <Image
+                      source={{ uri: formData.imageUri }}
+                      alt="Imagen del empleo"
+                      width="100%"
+                      height={150}
+                      borderRadius="lg"
+                    />
+                    <Pressable
+                      position="absolute"
+                      top={2}
+                      right={2}
+                      bg="red.500"
+                      p={2}
+                      borderRadius="full"
+                      onPress={removeImage}
+                    >
+                      <Icon
+                        as={MaterialIcons}
+                        name="close"
+                        color="white"
+                        size="sm"
+                      />
+                    </Pressable>
+                    <Pressable
+                      position="absolute"
+                      bottom={2}
+                      right={2}
+                      bg="blue.600"
+                      p={2}
+                      borderRadius="full"
+                      onPress={showImageOptions}
+                    >
+                      <Icon
+                        as={MaterialIcons}
+                        name="edit"
+                        color="white"
+                        size="sm"
+                      />
+                    </Pressable>
                   </Box>
-                </Pressable>
-              )}
-            </Box>
+                ) : (
+                  <Pressable onPress={showImageOptions}>
+                    <Box
+                      bg="gray.800"
+                      borderWidth={2}
+                      borderColor="gray.700"
+                      borderStyle="dashed"
+                      borderRadius="lg"
+                      py={8}
+                      alignItems="center"
+                    >
+                      <Icon
+                        as={MaterialIcons}
+                        name="add-photo-alternate"
+                        color="gray.400"
+                        size="xl"
+                        mb={2}
+                      />
+                      <Text
+                        color="gray.400"
+                        fontSize="sm"
+                      >
+                        {Platform.OS === "web"
+                          ? "Seleccionar imagen"
+                          : "Agregar imagen"}
+                      </Text>
+                    </Box>
+                  </Pressable>
+                )}
+              </Box>
 
-            {/* Título */}
-            <FormControl
-              isRequired
-              isInvalid={"title" in errors}
-            >
-              <FormControl.Label>
-                <Text
-                  color="gray.300"
-                  fontWeight="medium"
-                >
-                  Título del empleo
-                </Text>
-              </FormControl.Label>
-              <Input
-                value={formData.title}
-                onChangeText={(text) =>
-                  setFormData({ ...formData, title: text })
-                }
-                placeholder="Ej: Desarrollador Full Stack"
-                bg="gray.800"
-                color="white"
-                borderColor="gray.700"
-                _focus={{
-                  bg: "gray.800",
-                  borderColor: "blue.500",
-                }}
-                placeholderTextColor="gray.500"
-              />
-              {"title" in errors && (
-                <FormControl.ErrorMessage
-                  leftIcon={
-                    <Icon
-                      as={MaterialIcons}
-                      name="error"
-                      size="xs"
-                    />
+              {/* Título */}
+              <FormControl
+                isRequired
+                isInvalid={"title" in errors}
+              >
+                <FormControl.Label>
+                  <Text
+                    color="gray.300"
+                    fontWeight="medium"
+                  >
+                    Título del empleo
+                  </Text>
+                </FormControl.Label>
+                <Input
+                  value={formData.title}
+                  onChangeText={(text) =>
+                    setFormData({ ...formData, title: text })
                   }
-                >
-                  {errors.title}
-                </FormControl.ErrorMessage>
-              )}
-            </FormControl>
+                  placeholder="Ej: Desarrollador Full Stack"
+                  bg="gray.800"
+                  color="white"
+                  borderColor="gray.700"
+                  _focus={{
+                    bg: "gray.800",
+                    borderColor: "blue.500",
+                  }}
+                  placeholderTextColor="gray.500"
+                />
+                {"title" in errors && (
+                  <FormControl.ErrorMessage
+                    leftIcon={
+                      <Icon
+                        as={MaterialIcons}
+                        name="error"
+                        size="xs"
+                      />
+                    }
+                  >
+                    {errors.title}
+                  </FormControl.ErrorMessage>
+                )}
+              </FormControl>
 
-            {/* Empresa */}
-            <FormControl
-              isRequired
-              isInvalid={"company" in errors}
-            >
-              <FormControl.Label>
-                <Text
-                  color="gray.300"
-                  fontWeight="medium"
-                >
-                  Empresa
-                </Text>
-              </FormControl.Label>
-              <Input
-                value={formData.company}
-                onChangeText={(text) =>
-                  setFormData({ ...formData, company: text })
-                }
-                placeholder="Ej: Tech Solutions S.A."
-                bg="gray.800"
-                color="white"
-                borderColor="gray.700"
-                _focus={{
-                  bg: "gray.800",
-                  borderColor: "blue.500",
-                }}
-                placeholderTextColor="gray.500"
-              />
-              {"company" in errors && (
-                <FormControl.ErrorMessage
-                  leftIcon={
-                    <Icon
-                      as={MaterialIcons}
-                      name="error"
-                      size="xs"
-                    />
+              {/* Empresa */}
+              <FormControl
+                isRequired
+                isInvalid={"company" in errors}
+              >
+                <FormControl.Label>
+                  <Text
+                    color="gray.300"
+                    fontWeight="medium"
+                  >
+                    Empresa
+                  </Text>
+                </FormControl.Label>
+                <Input
+                  value={formData.company}
+                  onChangeText={(text) =>
+                    setFormData({ ...formData, company: text })
                   }
-                >
-                  {errors.company}
-                </FormControl.ErrorMessage>
-              )}
-            </FormControl>
+                  placeholder="Ej: Tech Solutions S.A."
+                  bg="gray.800"
+                  color="white"
+                  borderColor="gray.700"
+                  _focus={{
+                    bg: "gray.800",
+                    borderColor: "blue.500",
+                  }}
+                  placeholderTextColor="gray.500"
+                />
+                {"company" in errors && (
+                  <FormControl.ErrorMessage
+                    leftIcon={
+                      <Icon
+                        as={MaterialIcons}
+                        name="error"
+                        size="xs"
+                      />
+                    }
+                  >
+                    {errors.company}
+                  </FormControl.ErrorMessage>
+                )}
+              </FormControl>
 
-            {/* Ubicación */}
-            <FormControl>
-              <FormControl.Label>
-                <Text
-                  color="gray.300"
-                  fontWeight="medium"
-                >
-                  Ubicación
-                </Text>
-              </FormControl.Label>
-              <Input
-                value={formData.location}
-                onChangeText={(text) =>
-                  setFormData({ ...formData, location: text })
-                }
-                placeholder="Ej: Manizales, Colombia"
-                bg="gray.800"
-                color="white"
-                borderColor="gray.700"
-                _focus={{
-                  bg: "gray.800",
-                  borderColor: "blue.500",
-                }}
-                placeholderTextColor="gray.500"
-              />
-            </FormControl>
-
-            {/* Descripción */}
-            <FormControl
-              isRequired
-              isInvalid={"description" in errors}
-            >
-              <FormControl.Label>
-                <Text
-                  color="gray.300"
-                  fontWeight="medium"
-                >
-                  Descripción
-                </Text>
-              </FormControl.Label>
-              <TextArea
-                value={formData.description}
-                onChangeText={(text) =>
-                  setFormData({ ...formData, description: text })
-                }
-                placeholder="Describe las responsabilidades y beneficios del puesto..."
-                bg="gray.800"
-                color="white"
-                borderColor="gray.700"
-                _focus={{
-                  bg: "gray.800",
-                  borderColor: "blue.500",
-                }}
-                placeholderTextColor="gray.500"
-                h={20}
-                autoCompleteType={undefined}
-                tvParallaxProperties={undefined}
-                onTextInput={undefined}
-              />
-              {"description" in errors && (
-                <FormControl.ErrorMessage
-                  leftIcon={
-                    <Icon
-                      as={MaterialIcons}
-                      name="error"
-                      size="xs"
-                    />
+              {/* Ubicación */}
+              <FormControl>
+                <FormControl.Label>
+                  <Text
+                    color="gray.300"
+                    fontWeight="medium"
+                  >
+                    Ubicación
+                  </Text>
+                </FormControl.Label>
+                <Input
+                  value={formData.location}
+                  onChangeText={(text) =>
+                    setFormData({ ...formData, location: text })
                   }
-                >
-                  {errors.description}
-                </FormControl.ErrorMessage>
-              )}
-            </FormControl>
-          </VStack>
+                  placeholder="Ej: Manizales, Colombia"
+                  bg="gray.800"
+                  color="white"
+                  borderColor="gray.700"
+                  _focus={{
+                    bg: "gray.800",
+                    borderColor: "blue.500",
+                  }}
+                  placeholderTextColor="gray.500"
+                />
+              </FormControl>
+
+              {/* Descripción */}
+              <FormControl
+                isRequired
+                isInvalid={"description" in errors}
+              >
+                <FormControl.Label>
+                  <Text
+                    color="gray.300"
+                    fontWeight="medium"
+                  >
+                    Descripción
+                  </Text>
+                </FormControl.Label>
+                <TextArea
+                  value={formData.description}
+                  onChangeText={(text) =>
+                    setFormData({ ...formData, description: text })
+                  }
+                  placeholder="Describe las responsabilidades y beneficios del puesto..."
+                  bg="gray.800"
+                  color="white"
+                  borderColor="gray.700"
+                  _focus={{
+                    bg: "gray.800",
+                    borderColor: "blue.500",
+                  }}
+                  placeholderTextColor="gray.500"
+                  h={20}
+                  autoCompleteType={undefined}
+                  tvParallaxProperties={undefined}
+                  onTextInput={undefined}
+                />
+                {"description" in errors && (
+                  <FormControl.ErrorMessage
+                    leftIcon={
+                      <Icon
+                        as={MaterialIcons}
+                        name="error"
+                        size="xs"
+                      />
+                    }
+                  >
+                    {errors.description}
+                  </FormControl.ErrorMessage>
+                )}
+              </FormControl>
+            </VStack>
+          </ScrollView>
         </Modal.Body>
 
         {/* Footer con botones */}
