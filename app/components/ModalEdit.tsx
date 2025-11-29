@@ -537,7 +537,7 @@ export const EditJobModal: React.FC<EditJobModalProps> = ({
                       <Select.Item
                         key={admin.id}
                         label={admin.email}
-                        value={admin.email}
+                        value={admin.id}
                       />
                     ))}
                   </Select>
@@ -549,7 +549,10 @@ export const EditJobModal: React.FC<EditJobModalProps> = ({
                   mt={1}
                 >
                   {formData.accountManager
-                    ? `Account Manager actual: ${formData.accountManager}`
+                    ? `Account Manager asignado: ${
+                        admins.find((a) => a.id === formData.accountManager)
+                          ?.email || "Cargando..."
+                      }` // ✅ Busca el email del admin por su ID
                     : "Sin Account Manager asignado"}
                 </Text>
               </FormControl>
