@@ -709,7 +709,7 @@ export default function JobsListScreen() {
         storage={storage}
       />
 
-      {/* ✅ AGREGADO - Modal de Eliminación */}
+      {/* Modal de Eliminación */}
       <AlertDialog
         leastDestructiveRef={cancelRef}
         isOpen={isDeleteOpen}
@@ -801,17 +801,10 @@ export default function JobsListScreen() {
             bg="gray.800"
             borderTopColor="gray.700"
           >
-            <Button.Group space={2}>
-              <Button
-                variant="outline"
-                colorScheme="gray"
-                onPress={onDeleteClose}
-                ref={cancelRef}
-                _text={{ color: "gray.300" }}
-                isDisabled={isDeleting}
-              >
-                Cancelar
-              </Button>
+            <VStack
+              space={3}
+              width="100%"
+            >
               <Button
                 bg="red.600"
                 _pressed={{ bg: "red.700" }}
@@ -835,7 +828,18 @@ export default function JobsListScreen() {
               >
                 {isDeleting ? "Eliminando..." : "Eliminar Permanentemente"}
               </Button>
-            </Button.Group>
+
+              <Button
+                variant="outline"
+                colorScheme="gray"
+                onPress={onDeleteClose}
+                ref={cancelRef}
+                _text={{ color: "gray.300" }}
+                isDisabled={isDeleting}
+              >
+                Cancelar
+              </Button>
+            </VStack>
           </AlertDialog.Footer>
         </AlertDialog.Content>
       </AlertDialog>
