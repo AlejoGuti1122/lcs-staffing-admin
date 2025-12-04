@@ -61,7 +61,8 @@ export default function CreateJobScreen() {
   const [isGeocodingAddress, setIsGeocodingAddress] = useState<boolean>(false)
 
   // Account Manager (usuario logueado)
-  const [accountManager, setAccountManager] = useState<string>("")
+  const [accountManagerId, setAccountManagerId] = useState<string>("")
+  const [accountManagerName, setAccountManagerName] = useState<string>("")
 
   // Estados para responsabilidades dinámicas
   const [responsibilities, setResponsibilities] = useState<string[]>([])
@@ -78,7 +79,8 @@ export default function CreateJobScreen() {
   useEffect(() => {
     const user = auth.currentUser
     if (user) {
-      setAccountManager(user.displayName || user.email || "Admin")
+      setAccountManagerId(user.uid) // ✅ Guarda el ID para Firebase
+      setAccountManagerName(user.displayName || user.email || "Admin") // ✅ Guarda el nombre para mostrar
     }
   }, [])
 
@@ -364,7 +366,7 @@ export default function CreateJobScreen() {
         location: formData.address, // Guardamos la dirección completa
         latitude: coordinates.latitude, // ✨ Coordenadas automáticas
         longitude: coordinates.longitude, // ✨ Coordenadas automáticas
-        accountManager: accountManager,
+        accountManager: accountManagerId,
         responsibilities: responsibilities,
         imageURL: imageURL,
         createdAt: serverTimestamp(),
@@ -704,7 +706,7 @@ export default function CreateJobScreen() {
                     color="white"
                     fontSize="md"
                   >
-                    {accountManager || "Cargando..."}
+                    {accountManagerName || "Cargando..."}
                   </Text>
                 </HStack>
               </Box>

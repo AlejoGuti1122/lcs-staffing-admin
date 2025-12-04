@@ -3,6 +3,7 @@ import { router } from "expo-router"
 import { StatusBar } from "expo-status-bar"
 import {
   collection,
+  deleteDoc,
   doc,
   onSnapshot,
   orderBy,
@@ -26,6 +27,7 @@ import { FlatList, ListRenderItem } from "react-native"
 
 import { Image } from "expo-image"
 
+import { deleteObject, ref } from "firebase/storage" // ✅ AGREGADO
 import { db, storage } from "../../config/firebase"
 
 import { EditJobButton } from "../components/EditButton"
@@ -61,6 +63,15 @@ export default function JobsListScreen() {
     onOpen: onEditOpen,
     onClose: onEditClose,
   } = useDisclose()
+
+  // ✅ AGREGADO - Modal de eliminar
+  const {
+    isOpen: isDeleteOpen,
+    onOpen: onDeleteOpen,
+    onClose: onDeleteClose,
+  } = useDisclose()
+
+  const [jobToDelete, setJobToDelete] = useState<Job | null>(null)
 
   const cancelRef = useRef<any>(null)
   const elegantToast = useElegantToast()
@@ -156,6 +167,50 @@ export default function JobsListScreen() {
     }
   }
 
+  // ✅ AGREGADO - Función para eliminar imagen de Storage
+  const deleteImageFromStorage = async (imageURL: string): Promise<void> => {
+    try {
+      const imageRef = ref(storage, imageURL)
+      await deleteObject(imageRef)
+      console.log("✅ Imagen eliminada de Storage")
+    } catch (error) {
+      console.error("⚠️ Error eliminando imagen:", error)
+    }
+  }
+
+  // ✅ AGREGADO - Función para eliminar empleo
+  const handleDeleteJob = async (): Promise<void> => {
+    if (!jobToDelete || isDeleting) return
+
+    setIsDeleting(true)
+
+    try {
+      if (jobToDelete.imageURL) {
+        await deleteImageFromStorage(jobToDelete.imageURL)
+      }
+
+      await deleteDoc(doc(db, "jobs", jobToDelete.id))
+
+      elegantToast.success({
+        title: "¡Eliminado!",
+        description: "Empleo eliminado permanentemente",
+        duration: 3000,
+      })
+
+      onDeleteClose()
+      setJobToDelete(null)
+    } catch (error) {
+      console.error("Error eliminando empleo:", error)
+      elegantToast.error({
+        title: "Error",
+        description: "No se pudo eliminar el empleo",
+        duration: 3000,
+      })
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
   const openDeactivateDialog = (job: Job): void => {
     if (isDeleting) return
     setSelectedJob(job)
@@ -167,6 +222,13 @@ export default function JobsListScreen() {
     if (isDeleting) return
     setJobToEdit(job)
     onEditOpen()
+  }
+
+  // ✅ AGREGADO - Función para abrir modal de eliminar
+  const openDeleteDialog = (job: Job): void => {
+    if (isDeleting) return
+    setJobToDelete(job)
+    onDeleteOpen()
   }
 
   const formatDate = (timestamp: any): string => {
@@ -297,7 +359,6 @@ export default function JobsListScreen() {
         color="gray.300"
         fontSize="sm"
         mb={3}
-        numberOfLines={2}
       >
         {item.description}
       </Text>
@@ -359,6 +420,26 @@ export default function JobsListScreen() {
             onPress={() => openEditModal(item)}
             isDisabled={isDeleting}
           />
+
+          {/* ✅ AGREGADO - Botón Eliminar */}
+          <Button
+            variant="outline"
+            colorScheme="red"
+            size="sm"
+            leftIcon={
+              <Icon
+                as={MaterialIcons}
+                name="delete"
+                size="xs"
+              />
+            }
+            onPress={() => openDeleteDialog(item)}
+            _text={{ fontSize: "xs" }}
+            _pressed={{ opacity: 0.7 }}
+            isDisabled={isDeleting}
+          >
+            Eliminar
+          </Button>
 
           {item.status === "active" ? (
             <Button
@@ -458,23 +539,6 @@ export default function JobsListScreen() {
             </Text>
           </VStack>
         </HStack>
-
-        {/* <Button
-          bg="green.600"
-          _pressed={{ bg: "green.700" }}
-          size="sm"
-          leftIcon={
-            <Icon
-              as={MaterialIcons}
-              name="add"
-              color="white"
-            />
-          }
-          onPress={() => router.push("/createJob")}
-          _text={{ fontWeight: "medium", fontSize: "sm" }}
-        >
-          Crear
-        </Button> */}
       </HStack>
 
       {loading ? (
@@ -554,10 +618,10 @@ export default function JobsListScreen() {
         <FlatList
           data={jobs}
           renderItem={renderItem}
-          keyExtractor={(item) => `${item.id}-${item.imageURL || "no-image"}`} // Cambio aquí
+          keyExtractor={(item) => `${item.id}-${item.imageURL || "no-image"}`}
           contentContainerStyle={{ padding: 24, paddingBottom: 40 }}
           showsVerticalScrollIndicator={false}
-          extraData={jobs} // Agregar esto
+          extraData={jobs}
         />
       )}
 
@@ -586,7 +650,7 @@ export default function JobsListScreen() {
           </AlertDialog.Header>
           <AlertDialog.Body bg="gray.800">
             <Text color="gray.300">
-              ¿Estás seguro de que deseas desactivar el empleo
+              ¿Estás seguro de que deseas desactivar el empleo{" "}
               {selectedJob?.title}? El empleo dejará de ser visible para los
               candidatos, pero podrás reactivarlo cuando lo desees.
             </Text>
@@ -644,6 +708,137 @@ export default function JobsListScreen() {
         }}
         storage={storage}
       />
+
+      {/* ✅ AGREGADO - Modal de Eliminación */}
+      <AlertDialog
+        leastDestructiveRef={cancelRef}
+        isOpen={isDeleteOpen}
+        onClose={onDeleteClose}
+      >
+        <AlertDialog.Content
+          bg="gray.800"
+          borderColor="red.500"
+          borderWidth={2}
+        >
+          <AlertDialog.CloseButton _icon={{ color: "white" }} />
+          <AlertDialog.Header
+            bg="gray.800"
+            borderBottomColor="gray.700"
+          >
+            <HStack
+              alignItems="center"
+              space={2}
+            >
+              <Icon
+                as={MaterialIcons}
+                name="warning"
+                color="red.500"
+                size="md"
+              />
+              <Text
+                color="white"
+                fontSize="lg"
+                fontWeight="bold"
+              >
+                Eliminar Empleo
+              </Text>
+            </HStack>
+          </AlertDialog.Header>
+          <AlertDialog.Body bg="gray.800">
+            <VStack space={3}>
+              <Text
+                color="gray.300"
+                fontSize="md"
+              >
+                ¿Estás seguro de que deseas eliminar permanentemente el empleo{" "}
+                <Text
+                  fontWeight="bold"
+                  color="white"
+                >
+                  {jobToDelete?.title}
+                </Text>
+                ?
+              </Text>
+              <Box
+                bg="red.900"
+                p={3}
+                borderRadius="md"
+                borderLeftWidth={3}
+                borderLeftColor="red.500"
+              >
+                <Text
+                  color="red.200"
+                  fontSize="sm"
+                  fontWeight="medium"
+                >
+                  ⚠️ Esta acción NO se puede deshacer
+                </Text>
+                <Text
+                  color="red.300"
+                  fontSize="xs"
+                  mt={1}
+                >
+                  • Se eliminará el empleo de la base de datos
+                </Text>
+                {jobToDelete?.imageURL && (
+                  <Text
+                    color="red.300"
+                    fontSize="xs"
+                  >
+                    • Se eliminará la imagen asociada
+                  </Text>
+                )}
+                <Text
+                  color="red.300"
+                  fontSize="xs"
+                >
+                  • Los candidatos ya no podrán ver este empleo
+                </Text>
+              </Box>
+            </VStack>
+          </AlertDialog.Body>
+          <AlertDialog.Footer
+            bg="gray.800"
+            borderTopColor="gray.700"
+          >
+            <Button.Group space={2}>
+              <Button
+                variant="outline"
+                colorScheme="gray"
+                onPress={onDeleteClose}
+                ref={cancelRef}
+                _text={{ color: "gray.300" }}
+                isDisabled={isDeleting}
+              >
+                Cancelar
+              </Button>
+              <Button
+                bg="red.600"
+                _pressed={{ bg: "red.700" }}
+                onPress={handleDeleteJob}
+                isLoading={isDeleting}
+                isDisabled={isDeleting}
+                _loading={{
+                  bg: "red.600",
+                  _text: { color: "white" },
+                }}
+                leftIcon={
+                  !isDeleting ? (
+                    <Icon
+                      as={MaterialIcons}
+                      name="delete-forever"
+                      color="white"
+                      size="sm"
+                    />
+                  ) : undefined
+                }
+              >
+                {isDeleting ? "Eliminando..." : "Eliminar Permanentemente"}
+              </Button>
+            </Button.Group>
+          </AlertDialog.Footer>
+        </AlertDialog.Content>
+      </AlertDialog>
     </Box>
   )
 }
